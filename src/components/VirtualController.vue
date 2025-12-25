@@ -99,65 +99,63 @@
       </svg>
     </button>
 
-    <!-- center controls (portrait only) -->
-    <div
-      class="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-4 pointer-events-auto pb-4 landscape:hidden"
+    <!-- portrait home button (top center - miyoo style) -->
+    <button
+      class="landscape:hidden absolute top-2 left-1/2 transform -translate-x-1/2 w-12 h-12 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.1)] active:bg-white/20 active:scale-95 transition-all duration-300 flex items-center justify-center z-40 pointer-events-auto"
+      @click="openMenu"
+      @touchstart.prevent="openMenu"
     >
-      <!-- portrait menu button -->
-      <button
-        class="w-12 h-12 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 shadow-[inner_0_0_10px_rgba(255,255,255,0.05)] active:bg-white/20 active:scale-95 transition-all duration-300 flex items-center justify-center mb-6"
-        @click="openMenu"
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke-width="2"
+        stroke="currentColor"
+        class="w-5 h-5 text-white/80"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke-width="2"
-          stroke="currentColor"
-          class="w-5 h-5 text-white/80"
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"
+        />
+      </svg>
+    </button>
+
+    <!-- center controls (start/select only now) -->
+    <div
+      class="absolute bottom-10 left-1/2 transform -translate-x-1/2 flex items-center gap-8 pointer-events-auto landscape:hidden"
+    >
+      <!-- portrait select -->
+      <button
+        class="group flex flex-col items-center gap-2 active:scale-95 transition-transform duration-300 min-w-[44px] min-h-[44px] justify-center pointer-events-auto"
+        @click="openMenu"
+        @touchstart.prevent="openMenu"
+      >
+        <div
+          class="w-12 h-4 rounded-full bg-white/20 backdrop-blur-md border border-white/10 shadow-sm active:bg-white/40 transition-colors -rotate-[25deg]"
+        ></div>
+        <span
+          class="text-[10px] font-bold text-white/50 tracking-widest uppercase font-sans"
+          >select</span
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"
-          />
-        </svg>
       </button>
 
-      <!-- start / select pills -->
-      <div class="flex gap-8">
-        <!-- portrait select (home/menu) -->
-        <button
-          class="group flex flex-col items-center gap-2 active:scale-95 transition-transform duration-300 min-w-[44px] min-h-[44px] justify-center pointer-events-auto"
-          @click="openMenu"
-          @touchstart.prevent="openMenu"
+      <!-- portrait start (enter/13) -->
+      <button
+        class="group flex flex-col items-center gap-2 active:scale-95 transition-transform duration-300 min-w-[44px] min-h-[44px] justify-center"
+        @touchstart.prevent="pressKey(13)"
+        @touchend.prevent="releaseKey(13)"
+        @mousedown.prevent="pressKey(13)"
+        @mouseup.prevent="releaseKey(13)"
+      >
+        <div
+          class="w-12 h-4 rounded-full bg-white/20 backdrop-blur-md border border-white/10 shadow-sm active:bg-white/40 transition-colors -rotate-[25deg]"
+        ></div>
+        <span
+          class="text-[10px] font-bold text-white/50 tracking-widest uppercase font-sans"
+          >start</span
         >
-          <div
-            class="w-12 h-4 rounded-full bg-white/20 backdrop-blur-md border border-white/10 shadow-sm active:bg-white/40 transition-colors -rotate-[25deg]"
-          ></div>
-          <span
-            class="text-[10px] font-bold text-white/50 tracking-widest uppercase font-sans"
-            >select</span
-          >
-        </button>
-
-        <!-- portrait start (enter/13) -->
-        <button
-          class="group flex flex-col items-center gap-2 active:scale-95 transition-transform duration-300 min-w-[44px] min-h-[44px] justify-center"
-          @touchstart.prevent="pressKey(13)"
-          @touchend.prevent="releaseKey(13)"
-          @mousedown.prevent="pressKey(13)"
-          @mouseup.prevent="releaseKey(13)"
-        >
-          <div
-            class="w-12 h-4 rounded-full bg-white/20 backdrop-blur-md border border-white/10 shadow-sm active:bg-white/40 transition-colors -rotate-[25deg]"
-          ></div>
-          <span
-            class="text-[10px] font-bold text-white/50 tracking-widest uppercase font-sans"
-            >start</span
-          >
-        </button>
-      </div>
+      </button>
     </div>
 
     <!-- action buttons (right) -->
