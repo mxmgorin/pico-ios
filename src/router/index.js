@@ -12,7 +12,7 @@ const router = createRouter({
       beforeEnter: (to, from, next) => {
         if (to.query.boot) {
           console.log(
-            "🚀 ROUTER: Boot flag detected, redirecting to Player..."
+            "🚀 router: boot flag detected, redirecting to player..."
           );
           next({ name: "player", query: to.query });
         } else {

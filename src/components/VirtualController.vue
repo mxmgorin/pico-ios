@@ -2,7 +2,7 @@
   <div
     class="relative w-full h-full flex justify-between items-center pointer-events-none select-none px-6 pb-6 landscape:items-end landscape:pb-16 landscape:px-12"
   >
-    <!-- D-PAD CONTAINER (Left) -->
+    <!-- d-pad container (left) -->
     <div
       class="relative w-40 h-40 small:w-32 small:h-32 ml-2 pointer-events-auto active:scale-95 transition-transform duration-100 ease-out landscape:ml-2"
       @touchstart.prevent="handleDpadInput"
@@ -13,12 +13,12 @@
       @mouseup.prevent="handleDpadEnd"
       @mouseleave.prevent="handleDpadEnd"
     >
-      <!-- Glow effect -->
+      <!-- glow effect -->
       <div
         class="absolute inset-0 bg-white/5 blur-3xl rounded-full transform -translate-y-4"
       ></div>
 
-      <!-- D-Pad SVG -->
+      <!-- d-pad svg -->
       <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-2xl">
         <defs>
           <linearGradient
@@ -69,20 +69,20 @@
         </g>
       </svg>
 
-      <!-- LANDSCAPE SELECT BUTTON has been moved to Root Level -->
+      <!-- landscape select button has been moved to root level -->
     </div>
 
-    <!-- MENU BUTTON (Responsive) -->
-    <!-- Portrait: Centered Bottom (in flow with center controls? No, let's keep it separate) -->
-    <!-- Actually, better to duplicate or use strict absolute positioning relative to root -->
+    <!-- menu button (responsive) -->
+    <!-- portrait: centered bottom (in flow with center controls? no, let's keep it separate) -->
+    <!-- actually, better to duplicate or use strict absolute positioning relative to root -->
 
-    <!-- LANDSCAPE HOME BUTTON (Top Left) -->
+    <!-- landscape home button (top left) -->
     <button
       class="hidden landscape:flex absolute top-6 left-8 w-12 h-12 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.1)] active:bg-white/20 active:scale-95 transition-all duration-300 items-center justify-center z-50 pointer-events-auto"
       @click="openMenu"
       @touchstart.prevent="openMenu"
     >
-      <!-- Home Icon -->
+      <!-- home icon -->
       <svg
         xmlns="http://www.w3.org/2000/svg"
         fill="none"
@@ -99,11 +99,11 @@
       </svg>
     </button>
 
-    <!-- CENTER CONTROLS (Portrait Only) -->
+    <!-- center controls (portrait only) -->
     <div
       class="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-4 pointer-events-auto pb-4 landscape:hidden"
     >
-      <!-- PORTRAIT MENU BUTTON -->
+      <!-- portrait menu button -->
       <button
         class="w-12 h-12 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 shadow-[inner_0_0_10px_rgba(255,255,255,0.05)] active:bg-white/20 active:scale-95 transition-all duration-300 flex items-center justify-center mb-6"
         @click="openMenu"
@@ -124,9 +124,9 @@
         </svg>
       </button>
 
-      <!-- START / SELECT PILLS -->
+      <!-- start / select pills -->
       <div class="flex gap-8">
-        <!-- PORTRAIT SELECT (Home/Menu) -->
+        <!-- portrait select (home/menu) -->
         <button
           class="group flex flex-col items-center gap-2 active:scale-95 transition-transform duration-300 min-w-[44px] min-h-[44px] justify-center pointer-events-auto"
           @click="openMenu"
@@ -137,11 +137,11 @@
           ></div>
           <span
             class="text-[10px] font-bold text-white/50 tracking-widest uppercase font-sans"
-            >SELECT</span
+            >select</span
           >
         </button>
 
-        <!-- PORTRAIT START (Enter/13) -->
+        <!-- portrait start (enter/13) -->
         <button
           class="group flex flex-col items-center gap-2 active:scale-95 transition-transform duration-300 min-w-[44px] min-h-[44px] justify-center"
           @touchstart.prevent="pressKey(13)"
@@ -154,19 +154,19 @@
           ></div>
           <span
             class="text-[10px] font-bold text-white/50 tracking-widest uppercase font-sans"
-            >START</span
+            >start</span
           >
         </button>
       </div>
     </div>
 
-    <!-- ACTION BUTTONS (Right) -->
+    <!-- action buttons (right) -->
     <div
       class="relative w-36 h-48 landscape:w-48 landscape:h-56 small:w-36 small:h-48 pointer-events-auto mr-2 flex items-end justify-end landscape:mr-2"
     >
-      <!-- Button Container for grouping -->
+      <!-- button container for grouping -->
       <div class="relative w-full h-full">
-        <!-- O Button -->
+        <!-- o button -->
         <button
           class="absolute bottom-24 right-2 landscape:bottom-32 landscape:right-2 w-20 h-20 small:w-16 small:h-16 rounded-full bg-[rgba(255,0,77,0.15)] shadow-[0_0_15px_rgba(255,255,255,0.3)] backdrop-blur-md active:translate-y-1 active:shadow-none transition-all duration-75 flex items-center justify-center group border border-[#FF004D]/80"
           @touchstart.prevent="pressKey(90)"
@@ -176,11 +176,11 @@
         >
           <span
             class="text-white font-bold text-3xl font-pico opacity-90 group-active:opacity-100 flex items-center justify-center translate-x-[2px] -translate-y-[2px]"
-            >O</span
+            >o</span
           >
         </button>
 
-        <!-- X Button -->
+        <!-- x button -->
         <button
           class="absolute bottom-4 right-14 landscape:bottom-9 landscape:right-20 w-20 h-20 small:w-16 small:h-16 rounded-full bg-[rgba(41,173,255,0.15)] shadow-[0_0_15px_rgba(255,255,255,0.3)] backdrop-blur-md active:translate-y-1 active:shadow-none transition-all duration-75 flex items-center justify-center group border border-[#29ADFF]/80"
           @touchstart.prevent="pressKey(88)"
@@ -190,16 +190,16 @@
         >
           <span
             class="text-white font-bold text-3xl font-pico opacity-90 group-active:opacity-100 flex items-center justify-center translate-x-[2px] -translate-y-[2px]"
-            >X</span
+            >x</span
           >
         </button>
       </div>
     </div>
 
-    <!-- LANDSCAPE NAVIGATION (Root Level - The Bezel Hug) -->
-    <!-- Positioned inward to be closer to game view corners and away from controls -->
+    <!-- landscape navigation (root level - the bezel hug) -->
+    <!-- positioned inward to be closer to game view corners and away from controls -->
 
-    <!-- Landscape Select (Left Side Inward) -->
+    <!-- landscape select (left side inward) -->
     <button
       class="hidden landscape:flex absolute bottom-8 left-48 w-16 h-16 pointer-events-auto items-center justify-center flex-col gap-1 active:scale-95 transition-transform duration-300"
       @click="openMenu"
@@ -210,11 +210,11 @@
       ></div>
       <span
         class="text-[10px] font-bold text-white/50 tracking-widest uppercase font-sans mt-1"
-        >SELECT</span
+        >select</span
       >
     </button>
 
-    <!-- Landscape Start (Right Side Inward) -->
+    <!-- landscape start (right side inward) -->
     <button
       class="hidden landscape:flex absolute bottom-8 right-56 w-16 h-16 pointer-events-auto items-center justify-center flex-col gap-1 active:scale-95 transition-transform duration-300"
       @touchstart.prevent="pressKey(13)"
@@ -227,7 +227,7 @@
       ></div>
       <span
         class="text-[10px] font-bold text-white/50 tracking-widest uppercase font-sans mt-1"
-        >START</span
+        >start</span
       >
     </button>
   </div>
@@ -242,7 +242,7 @@ const currentDirection = ref(null);
 let isMouseDown = false;
 
 const handleDpadInput = (e) => {
-  // Handle Mouse vs Touch
+  // handle mouse vs touch
   let clientX, clientY;
 
   if (e.type.startsWith("touch")) {

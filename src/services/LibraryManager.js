@@ -174,8 +174,8 @@ export class LibraryManager {
         } catch (e) {}
       }
 
-      // MEMORY-STREAM HANDOFF (Payload Key Update)
-      // Stash immediate payload for zero-disk launching
+      // memory-stream handoff (payload key update)
+      // stash immediate payload for zero-disk launching
       localStorage.setItem("pico_handoff_payload", base64Data);
       localStorage.setItem("pico_handoff_name", filename);
 
@@ -188,13 +188,13 @@ export class LibraryManager {
 
   async deleteCartridge(filename) {
     try {
-      // 1. Delete Cartridge
+      // 1. delete cartridge
       await Filesystem.deleteFile({
         path: `${CARTS_DIR}/${filename}`,
         directory: Directory.Documents,
       });
 
-      // 2. Delete Cover Image (Best effort)
+      // 2. delete cover image (best effort)
       const baseName = filename.replace(/\.p8(\.png)?$/, "");
       try {
         await Filesystem.deleteFile({
@@ -202,20 +202,20 @@ export class LibraryManager {
           directory: Directory.Documents,
         });
       } catch (e) {
-        // Image might not exist or be used by something else (unlikely in this structure)
+        // image might not exist or be used by something else (unlikely in this structure)
       }
 
-      // 3. Remove from metadata if exists
+      // 3. remove from metadata if exists
       if (this.metadata[filename]) {
         delete this.metadata[filename];
         await this.saveMetadata();
       }
 
-      // Rescan to update list
+      // rescan to update list
       await this.scan();
       return true;
     } catch (e) {
-      // console.error("Delete failed", e);
+      // console.error("delete failed", e);
       return false;
     }
   }
@@ -229,7 +229,7 @@ export class LibraryManager {
         encoding: Encoding.UTF8,
       });
     } catch (e) {
-      // console.error("Failed to save metadata", e);
+      // console.error("failed to save metadata", e);
     }
   }
 }

@@ -2,16 +2,16 @@ import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
 import { haptics } from "../utils/haptics";
 
 /**
- * THE GOLDEN BRIDGE (PICO-8 INTERFACE)
+ * the golden bridge (pico-8 interface)
  * ------------------------------------
- * Phase 73 Stable Release
+ * phase 73 stable release
  *
- * Architecture:
- * 1. Prepares window.Module with "Poison/Antidote" protocol.
- * 2. Injects cartridge into VFS via Poller (Phase 68).
- * 3. Clears _cartdat to bypass embedded loader (Phase 72).
- * 4. Forces offline mode (Phase 73).
- * 5. Boots engine via callMain.
+ * architecture:
+ * 1. prepares window.module with "poison/antidote" protocol.
+ * 2. injects cartridge into vfs via poller (phase 68).
+ * 3. clears _cartdat to bypass embedded loader (phase 72).
+ * 4. forces offline mode (phase 73).
+ * 5. boots engine via callmain.
  */
 class Pico8Bridge {
   constructor() {

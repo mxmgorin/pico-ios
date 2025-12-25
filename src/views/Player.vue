@@ -288,20 +288,20 @@ function exit() {
   picoBridge.shutdown();
 
   setTimeout(() => {
-    // Robust exit: Clear search (query params) and go to root hash
+    // robust exit: clear search (query params) and go to root hash
     const url = new URL(window.location.href);
     url.search = "";
     url.hash = "#/";
     window.location.href = url.toString();
   }, 100);
 }
-// Menu Navigation Logic
+// menu navigation logic
 const menuButtons = ["resumeBtn", "resetBtn", "exitBtn"];
 const focusIndex = ref(0);
 
 watch(isMenuOpen, (newVal) => {
   if (newVal) {
-    focusIndex.value = 0; // Reset focus to top
+    focusIndex.value = 0; // reset focus to top
     setTimeout(() => document.getElementById(menuButtons[0])?.focus(), 50);
   }
 });
@@ -310,12 +310,12 @@ function handleMenuKeydown(e) {
   if (!isMenuOpen.value) return;
 
   if (e.key === "ArrowUp") {
-    // Phase 86: Swapped Logic (Up triggers Next/Down visual to fix inversion)
+    // swapped logic (up triggers next/down visual to fix inversion)
     focusIndex.value = (focusIndex.value + 1) % menuButtons.length;
     document.getElementById(menuButtons[focusIndex.value])?.focus();
     e.preventDefault();
   } else if (e.key === "ArrowDown") {
-    // Phase 86: Swapped Logic (Down triggers Prev/Up visual to fix inversion)
+    // swapped logic (down triggers prev/up visual to fix inversion)
     focusIndex.value =
       (focusIndex.value - 1 + menuButtons.length) % menuButtons.length;
     document.getElementById(menuButtons[focusIndex.value])?.focus();
@@ -326,7 +326,7 @@ function handleMenuKeydown(e) {
     e.key === " " ||
     e.key === "x"
   ) {
-    // "O" (z) or "X" (x) or Start triggers click
+    // "o" (z) or "x" (x) or start triggers click
     document.getElementById(menuButtons[focusIndex.value])?.click();
     e.preventDefault();
   }

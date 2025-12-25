@@ -11,9 +11,9 @@ app.use(router);
 
 app.mount("#app");
 
-// Force Router Push if boot flag is present (Fixes mounting issue)
+// force router push if boot flag is present (fixes mounting issue)
 if (window.location.search.includes("boot")) {
-  console.log("🚀 MAIN: Boot flag detected. Forcing navigation to /play...");
+  console.log("🚀 main: boot flag detected. forcing navigation to /play...");
   router.push({
     name: "player",
     query: Object.fromEntries(new URLSearchParams(window.location.search)),
