@@ -514,7 +514,6 @@ onMounted(async () => {
     const loadedGames = await loadLibrary();
     // # silent ship protocol
     console.log(`[Library] Loaded ${loadedGames.length} cartridges.`);
-    // libraryGames.value = loadedGames; // fixed variable name logic if needed, assuming store handles it
   } catch (e) {
     console.error("[Library] Load failed:", e);
   }
@@ -567,7 +566,7 @@ async function handleFileImport(event) {
   }
 }
 
-// # Long Press Logic
+// long press logic
 function startLongPress(game) {
   if (deleteMode.value) return;
   longPressTimer = setTimeout(() => {
@@ -585,10 +584,6 @@ function cancelLongPress() {
 
 function handleBackgroundClick(e) {
   if (deleteMode.value) {
-    // Check if click target is NOT a delete button
-    // Simple way: just disable it. Specific delete clicks propagate?
-    // Actually if we click background, we disable.
-    // Delete button stops propagation.
     deleteMode.value = false;
   }
 }
@@ -601,11 +596,11 @@ async function startDeleteMode() {
 async function handleDelete(game, event) {
   event.stopPropagation();
 
-  // 1. Ask first (Blocking UI)
+  // ask first
   if (confirm(`Delete ${game.name}? This cannot be undone.`)) {
-    // 2. Action
+    // action
     await removeCartridge(game.name);
-    // 3. Feedback (Safe now that thread is unblocked)
+    // feedback
     Haptics.notification({ type: "success" }).catch(() => {});
   }
 }
