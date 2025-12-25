@@ -1,5 +1,7 @@
 <template>
-  <div class="min-h-screen bg-[#0a0a12] relative overflow-hidden">
+  <div
+    class="min-h-screen bg-[var(--color-oled-black)] relative overflow-y-auto no-scrollbar"
+  >
     <!-- Mesh Gradient Background -->
     <div class="fixed inset-0 z-0 pointer-events-none">
       <div
@@ -296,7 +298,7 @@
 
         <!-- Sheet -->
         <div
-          class="relative w-full bg-[#1c1c1e]/90 backdrop-blur-xl rounded-t-3xl border-t border-white/10 p-6 pb-12 shadow-2xl max-h-[80vh] overflow-y-auto"
+          class="relative w-full bg-[var(--color-surface)] backdrop-blur-xl rounded-t-3xl border-t border-white/10 p-6 pb-12 shadow-2xl max-h-[80vh] overflow-y-auto"
         >
           <!-- Handle -->
           <div class="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-6"></div>
@@ -385,8 +387,10 @@ const sortOptions = [
 onMounted(async () => {
   console.log("[Library] Mounting...");
   try {
-    await loadLibrary();
-    console.log("[Library] Loaded.");
+    const loadedGames = await loadLibrary();
+    // Phase 74: Silent Ship Protocol
+    console.log(`[Library] Loaded ${loadedGames.length} cartridges.`);
+    libraryGames.value = loadedGames;
   } catch (e) {
     console.error("[Library] Load failed:", e);
   }
@@ -455,9 +459,7 @@ async function openGame(game) {
     // Stash
     localStorage.setItem("pico_handoff_payload", fileData.data);
     localStorage.setItem("pico_handoff_name", game.name);
-    console.log(
-      `[Library] Stashed ${game.name} (${fileData.data.length} chars)`
-    );
+    console.log(`[Library] Stashed ${game.name} for handoff.`);
 
     // Navigate (Direct Boot Handover)
     // We go straight to 'boot' mode, since we stashed the data.
@@ -502,21 +504,8 @@ async function openGame(game) {
   transform: translateY(20px);
 }
 
-.animate-pulse-slow {
-  animation: pulse 8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.4;
-  }
-  50% {
-    opacity: 0.6;
-  }
-}
-
 /* Custom Scrollbar for Settings */
+/* Handled globally in style.css */
 ::-webkit-scrollbar {
   width: 6px;
 }

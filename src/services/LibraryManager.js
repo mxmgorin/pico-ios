@@ -5,6 +5,7 @@ const ROOT = "";
 const CARTS_DIR = "Carts";
 const IMAGES_DIR = "Images";
 const SAVES_DIR = "Saves";
+const LIBRARY_FILE = "library.json";
 
 export class LibraryManager {
   constructor() {
@@ -61,7 +62,7 @@ export class LibraryManager {
       await this.scan();
       this.initialized = true;
     } catch (e) {
-      console.error("LibraryManager Init Failed", e);
+      // Silent failure
     }
   }
 
@@ -81,17 +82,17 @@ export class LibraryManager {
         directory: Directory.Documents,
       });
 
-      for (const file of result.files) {
-        if (file.name.endsWith(".p8.png") || file.name.endsWith(".p8")) {
+      const scanPromises = result.files
+        .filter(
+          (file) => file.name.endsWith(".p8.png") || file.name.endsWith(".p8")
+        )
+        .map(async (file) => {
           const id = file.name;
           const meta = this.metadata[id] || { playCount: 0, lastPlayed: 0 };
-
-          // Image Path: Pocket8/Images/[filename - extension].png
           const baseName = file.name.replace(/\.p8(\.png)?$/, "");
           const imagePath = `${IMAGES_DIR}/${baseName}.png`;
-
-          // Check if image exists
           let coverUri = null;
+
           try {
             const stat = await Filesystem.getUri({
               path: imagePath,
@@ -100,25 +101,26 @@ export class LibraryManager {
             coverUri = Capacitor.convertFileSrc(stat.uri);
           } catch (e) {}
 
-          games.push({
+          let path = file.uri;
+          if (path.startsWith("file://")) {
+            path = path.replace("file://", "");
+          }
+
+          return {
             name: file.name,
             id: id,
-            path: file.uri,
+            path: path,
             lastPlayed: meta.lastPlayed,
             playCount: meta.playCount,
             cover: coverUri || null,
-          });
-        }
-      }
+          };
+        });
 
-      // Stripping file:// prefixes if present (User Request)
-      games.forEach((g) => {
-        if (g.path.startsWith("file://")) {
-          g.path = g.path.replace("file://", "");
-        }
-      });
+      const loadedGames = await Promise.all(scanPromises);
+      games.push(...loadedGames);
+      console.log(`📦 [Shelf] ${games.length} games ready.`);
     } catch (e) {
-      // Carts dir might not exist yet
+      // Silent catch
     }
 
     // Sort by Last Played Descending
@@ -213,7 +215,7 @@ export class LibraryManager {
       await this.scan();
       return true;
     } catch (e) {
-      console.error("Delete failed", e);
+      // console.error("Delete failed", e);
       return false;
     }
   }
@@ -227,7 +229,7 @@ export class LibraryManager {
         encoding: Encoding.UTF8,
       });
     } catch (e) {
-      console.error("Failed to save metadata", e);
+      // console.error("Failed to save metadata", e);
     }
   }
 }

@@ -2361,11 +2361,13 @@ var ASM_CONSTS = [
   },
   function ($0) {
     function audio_log(msg) {
+      /*
       if (window.console && window.console.log) {
         window.console.log("[codo] audio_init_webaudio " + msg);
       }
+      */
     }
-    audio_log("audio_init");
+    // audio_log("audio_init");
     var codo_audio_context;
     if (typeof Module === "undefined") audio_log(" *** Module undefined");
     else if (typeof Module.ccall === "undefined")
@@ -2393,18 +2395,27 @@ var ASM_CONSTS = [
           audio_log("Buffer Size: " + $0);
           node = codo_audio_context.createScriptProcessor($0, 1, 1);
           node.onaudioprocess = function (e) {
-            var data = e.outputBuffer.getChannelData(0);
-            var r = 22050 / codo_audio_context.sampleRate;
-            var len0 = Math.floor(data.length * r);
-            var len1 = data.length;
-            var ptr = Module.ccall(
-              "mix_0",
-              "number",
-              ["number", "number"],
-              [len0, len1]
-            );
-            for (var j = 0; j < data.length; j++)
-              data[j] = Module.getValue(ptr + j * 2, "i16") / 32768;
+            // Phase 76: Hard Audio Kill Switch
+            if (window.Pico8Kill) return;
+
+            try {
+              if (!Module || !Module.ccall) return;
+
+              var data = e.outputBuffer.getChannelData(0);
+              var r = 22050 / codo_audio_context.sampleRate;
+              var len0 = Math.floor(data.length * r);
+              var len1 = data.length;
+              var ptr = Module.ccall(
+                "mix_0",
+                "number",
+                ["number", "number"],
+                [len0, len1]
+              );
+              for (var j = 0; j < data.length; j++)
+                data[j] = Module.getValue(ptr + j * 2, "i16") / 32768;
+            } catch (e) {
+              // Silent failure preferred during shutdown
+            }
           };
           node.connect(codo_audio_context.destination);
         } else {
@@ -2476,8 +2487,8 @@ var ASM_CONSTS = [
         ? document.getElementById("codo_textarea")
         : codo_textarea;
     if (el && el.style.display != "none") {
-      el.focus();
-      el.select();
+      // el.focus();
+      // el.select();
     }
   },
   function () {
@@ -2539,8 +2550,8 @@ var ASM_CONSTS = [
       (typeof p8_touch_detected === "undefined" || !p8_touch_detected)
     ) {
       el.style.display = "";
-      el.focus();
-      el.select();
+      // el.focus();
+      // el.select();
     }
   },
   function () {
@@ -5846,6 +5857,7 @@ function _emscripten_set_main_loop(
   }
   var thisMainLoopId = Browser.mainLoop.currentlyRunningMainloop;
   Browser.mainLoop.runner = function Browser_mainLoop_runner() {
+    if (window.Pico8Kill) return;
     if (ABORT) return;
     if (Browser.mainLoop.queue.length > 0) {
       var start = Date.now();
@@ -5952,6 +5964,14 @@ var Browser = {
     },
     runIter: function (func) {
       if (ABORT) return;
+      // Phase 74: The Silent Ship - Kill Switch
+      if (window.Pico8Kill) {
+        if (window.p8_is_running) {
+          console.log("[Pico8] Kill Switch Active. Halting loop.");
+          window.p8_is_running = false;
+        }
+        return;
+      }
       if (Module["preMainLoop"]) {
         var preRet = Module["preMainLoop"]();
         if (preRet === false) {
@@ -6372,7 +6392,10 @@ var Browser = {
           window["oRequestAnimationFrame"] ||
           Browser.fakeRequestAnimationFrame;
       }
-      window.requestAnimationFrame(func);
+      window.requestAnimationFrame((ts) => {
+        if (window.Pico8Kill) return;
+        func(ts);
+      });
     }
   },
   safeCallback: function (func) {
@@ -6397,6 +6420,7 @@ var Browser = {
   },
   safeRequestAnimationFrame: function (func) {
     return Browser.requestAnimationFrame(function () {
+      if (window.Pico8Kill) return;
       if (ABORT) return;
       if (Browser.allowAsyncCallbacks) {
         func();

@@ -1,5 +1,14 @@
 {
   "appId": "com.picoframe.app",
   "appName": "Pocket8",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "CapacitorCookies": {
+      "enabled": true
+    },
+    "Console": {
+      "visibility": "visible"
+    }
+  },
+  "loggingBehavior": "none"
 }
