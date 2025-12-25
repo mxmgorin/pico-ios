@@ -7,7 +7,7 @@
     <!-- Portrait: Flex-1 (Takes remaining space above controller) -->
     <!-- Landscape: Full screen with padding constraints -->
     <div
-      class="game-zone flex-1 relative flex items-center justify-center overflow-hidden w-full landscape:h-full landscape:w-full landscape:px-32"
+      class="game-zone flex-1 relative flex items-center justify-center overflow-hidden w-full landscape:h-full landscape:w-full landscape:px-36"
     >
       <div
         id="canvas-container"
@@ -64,12 +64,40 @@
               RESUME
             </button>
 
+            <!-- save button -->
+            <button
+              id="saveBtn"
+              @click="triggerSave"
+              class="px-8 py-3 rounded-xl font-medium tracking-wider transition-colors w-full backdrop-blur-md focus:ring-4 focus:ring-white/50 outline-none font-pico"
+              :class="
+                focusIndex === 1
+                  ? 'bg-white text-black'
+                  : 'bg-white/10 text-white hover:bg-white/20'
+              "
+            >
+              SAVE GAME
+            </button>
+
+            <!-- load button -->
+            <button
+              id="loadBtn"
+              @click="triggerLoad"
+              class="px-8 py-3 rounded-xl font-medium tracking-wider transition-colors w-full backdrop-blur-md focus:ring-4 focus:ring-white/50 outline-none font-pico"
+              :class="
+                focusIndex === 2
+                  ? 'bg-white text-black'
+                  : 'bg-white/10 text-white hover:bg-white/20'
+              "
+            >
+              LOAD GAME
+            </button>
+
             <button
               id="resetBtn"
               @click="resetGame"
               class="px-8 py-3 rounded-xl font-medium tracking-wider transition-colors w-full backdrop-blur-md focus:ring-4 focus:ring-white/50 outline-none font-pico"
               :class="
-                focusIndex === 1
+                focusIndex === 3
                   ? 'bg-white text-black'
                   : 'bg-white/10 text-white hover:bg-white/20'
               "
@@ -82,7 +110,7 @@
               @click="exit"
               class="px-8 py-3 rounded-xl font-medium tracking-wider transition-colors w-full border border-red-500/30 backdrop-blur-md focus:ring-4 focus:ring-red-500/50 outline-none font-pico"
               :class="
-                focusIndex === 2
+                focusIndex === 4
                   ? 'bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)]'
                   : 'bg-red-500/10 text-red-400 hover:bg-red-500/20'
               "
@@ -237,9 +265,14 @@ onUnmounted(() => {
 });
 
 function toggleMenu() {
-  isMenuOpen.value = !isMenuOpen.value; // Simple toggle
+  isMenuOpen.value = !isMenuOpen.value; // simple toggle
   if (isMenuOpen.value) {
     picoBridge.pause();
+    // auto-commit on menu open (as requested)
+    if (window.picoSave) {
+      console.log("💾 [Player] Auto-saving on menu open...");
+      window.picoSave();
+    }
   } else {
     picoBridge.resume();
   }
@@ -283,6 +316,12 @@ function hookPicoQuit() {
 }
 
 function exit() {
+  // auto-save on exit
+  if (window.picoSave) {
+    console.log("💾 [Player] Auto-saving on exit...");
+    window.picoSave();
+  }
+
   window.Pico8Kill = true;
   isExiting.value = true;
   picoBridge.shutdown();
@@ -296,8 +335,32 @@ function exit() {
   }, 100);
 }
 // menu navigation logic
-const menuButtons = ["resumeBtn", "resetBtn", "exitBtn"];
+const menuButtons = ["resumeBtn", "saveBtn", "loadBtn", "resetBtn", "exitBtn"];
 const focusIndex = ref(0);
+
+function triggerSave() {
+  if (window.picoSave) {
+    window.picoSave();
+    // show feedback toast
+    infoMessage.value = "GAME SAVED";
+    showInfo.value = true;
+    setTimeout(() => {
+      showInfo.value = false;
+    }, 2000);
+  }
+}
+
+function triggerLoad() {
+  if (window.picoLoad) {
+    window.picoLoad();
+    // show feedback toast
+    infoMessage.value = "GAME RELOADED";
+    showInfo.value = true;
+    setTimeout(() => {
+      showInfo.value = false;
+    }, 2000);
+  }
+}
 
 watch(isMenuOpen, (newVal) => {
   if (newVal) {

@@ -20,9 +20,17 @@ class Pico8Bridge {
   }
 
   initGlobalState() {
-    // Required by game.js schema
+    // required by game.js schema
     window.pico8_gpio = new Array(128);
     window.p8_is_running = false;
+
+    // persistence placeholders (quiet default)
+    window.picoSave = () => {
+      /* system not ready yet, ignoring auto-save */
+    };
+    window.picoLoad = () => {
+      /* system not ready yet */
+    };
   }
 
   /**
@@ -54,8 +62,8 @@ class Pico8Bridge {
         return document.getElementById("canvas");
       },
 
-      // Phase 72: Force VFS Path, bypass persistent arguments
-      arguments: ["-run", "/cart.png"],
+      // Phase 98: Force PICO-8 to use /appdata for saves/config
+      arguments: ["-run", "/cart.png", "-home", "/appdata"],
 
       // Phase 72: Race Condition Fix
       noInitialRun: true,
@@ -66,18 +74,135 @@ class Pico8Bridge {
 
           const poller = setInterval(() => {
             if (window.FS) {
-              // console.log("⚡️ [Pico8Bridge] Global FS Detected!");
-
-              // A. Mount IDBFS (Save Data)
+              // a. mount idbfs (save data)
               try {
-                window.FS.mkdir("/pico-8");
-                window.FS.mount(window.Module.IDBFS, {}, "/pico-8");
-                window.FS.syncfs(true, (err) => {
-                  // if (!err) console.log("✅ [Pico8Bridge] Save System Mounted");
-                });
-              } catch (e) {} // Likely already mounted
+                // user request: mount /appdata for persistence
+                window.FS.mkdir("/appdata");
+                window.FS.mount(window.Module.IDBFS, {}, "/appdata");
 
-              // B. Inject Cartridge (Phase 68)
+                // initial sync (read from disk)
+                window.FS.syncfs(true, async (err) => {
+                  if (!err) {
+                    console.log(
+                      "✅ [pico8bridge] save system mounted (/appdata)"
+                    );
+                    // phase 96: pull from native saves immediately after mounting
+                    await window.picoBridge.syncFromNative();
+                  }
+                });
+
+                // helper: sync internal vfs -> native documents/saves
+                window.picoBridge.syncToNative = async () => {
+                  try {
+                    const savesDir = "/appdata";
+                    const files = window.FS.readdir(savesDir); // list all files
+                    console.log(
+                      `💾 [pico8bridge] scanning /appdata... found ${files.length} items`
+                    );
+
+                    for (const file of files) {
+                      if (file === "." || file === "..") continue;
+
+                      const path = `${savesDir}/${file}`;
+                      const data = window.FS.readFile(path); // uint8array
+                      const base64 =
+                        typeof data === "string"
+                          ? btoa(data)
+                          : btoa(String.fromCharCode.apply(null, data));
+
+                      // ensure native saves directory exists
+                      try {
+                        await Filesystem.mkdir({
+                          path: "Saves",
+                          directory: Directory.Documents,
+                          recursive: true,
+                        });
+                      } catch (e) {}
+
+                      // write to native
+                      await Filesystem.writeFile({
+                        path: `Saves/${file}`,
+                        data: base64,
+                        directory: Directory.Documents,
+                      });
+                      console.log(
+                        `💾 [pico8bridge] exported ${file} to native saves`
+                      );
+                    }
+                  } catch (e) {
+                    console.error("❌ nativesync export failed:", e);
+                  }
+                };
+
+                // helper: sync native documents/saves -> internal vfs
+                window.picoBridge.syncFromNative = async () => {
+                  try {
+                    // list native save files
+                    const result = await Filesystem.readdir({
+                      path: "Saves",
+                      directory: Directory.Documents,
+                    });
+
+                    for (const file of result.files) {
+                      const filename = file.name;
+                      // read from native
+                      const data = await Filesystem.readFile({
+                        path: `Saves/${filename}`,
+                        directory: Directory.Documents,
+                      });
+
+                      // convert base64 -> uint8array
+                      const binaryString = window.atob(data.data);
+                      const len = binaryString.length;
+                      const bytes = new Uint8Array(len);
+                      for (let i = 0; i < len; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                      }
+
+                      // write to vfs
+                      window.FS.writeFile(`/appdata/${filename}`, bytes);
+                      console.log(
+                        `📂 [pico8bridge] imported ${filename} from native saves`
+                      );
+                    }
+                  } catch (e) {
+                    // console.log("no native saves found or read failed", e);
+                  }
+                };
+
+                // expose sync methods globally
+                window.picoSave = () => {
+                  console.log("💾 [pico8bridge] syncing to disk...");
+                  window.FS.syncfs(false, async (err) => {
+                    if (err) console.error("❌ save failed:", err);
+                    else {
+                      console.log("✅ idbfs save complete.");
+                      // trigger native export
+                      await window.picoBridge.syncToNative();
+                    }
+                  });
+                };
+
+                window.picoLoad = () => {
+                  console.log("📂 [pico8bridge] loading from disk...");
+                  // pull from native first
+                  window.picoBridge.syncFromNative().then(() => {
+                    window.FS.syncfs(true, (err) => {
+                      if (err) console.error("❌ load failed:", err);
+                      else {
+                        console.log("✅ load complete. rebooting to apply...");
+                        // reload page to force engine restart with new data
+                        // this is the only reliable way to "load" a save currently active in ram
+                        window.location.reload();
+                      }
+                    });
+                  });
+                };
+              } catch (e) {
+                // ignore if already mounted
+              }
+
+              // b. inject cartridge (phase 68)
               if (window._cartdat) {
                 try {
                   // Ensure clean slate
@@ -175,14 +300,42 @@ class Pico8Bridge {
   }
 
   resumeAudio() {
-    // iOS Safari Audio Unlock
+    // ios safari audio unlock
     const ctx =
       window.pico8_audio_context ||
       (window.Module && window.Module.sdl_audio_context);
     if (ctx && ctx.state === "suspended") {
       ctx.resume().then(() => {
-        console.log("[Pico8Bridge] Audio Context Resumed");
+        console.log("[pico8bridge] audio context resumed");
       });
+    }
+  }
+
+  pause() {
+    try {
+      if (window.Module && window.Module.pauseMainLoop) {
+        window.Module.pauseMainLoop();
+      }
+      // suspend audio
+      const ctx =
+        window.pico8_audio_context ||
+        (window.Module && window.Module.sdl_audio_context);
+      if (ctx && ctx.state === "running") ctx.suspend();
+      console.log("wm: [pico8bridge] engine paused");
+    } catch (e) {
+      console.warn("wm: pause failed", e);
+    }
+  }
+
+  resume() {
+    try {
+      if (window.Module && window.Module.resumeMainLoop) {
+        window.Module.resumeMainLoop();
+      }
+      this.resumeAudio();
+      console.log("wm: [pico8bridge] engine resumed");
+    } catch (e) {
+      console.warn("wm: resume failed", e);
     }
   }
 }

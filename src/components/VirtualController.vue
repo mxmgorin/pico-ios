@@ -4,7 +4,7 @@
   >
     <!-- d-pad container (left) -->
     <div
-      class="relative w-40 h-40 small:w-32 small:h-32 ml-2 pointer-events-auto active:scale-95 transition-transform duration-100 ease-out landscape:ml-2"
+      class="relative w-40 h-40 small:w-36 small:h-36 ml-2 pointer-events-auto active:scale-95 transition-transform duration-100 ease-out landscape:ml-8"
       @touchstart.prevent="handleDpadInput"
       @touchmove.prevent="handleDpadInput"
       @touchend.prevent="handleDpadEnd"
@@ -162,7 +162,7 @@
 
     <!-- action buttons (right) -->
     <div
-      class="relative w-36 h-48 landscape:w-48 landscape:h-56 small:w-36 small:h-48 pointer-events-auto mr-2 flex items-end justify-end landscape:mr-2"
+      class="relative w-36 h-48 landscape:w-48 landscape:h-56 small:w-36 small:h-48 pointer-events-auto mr-2 flex items-end justify-end landscape:mr-12"
     >
       <!-- button container for grouping -->
       <div class="relative w-full h-full">

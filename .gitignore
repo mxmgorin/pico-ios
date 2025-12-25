@@ -1,10 +1,13 @@
-# Node
+# Node & Build
 node_modules/
 dist/
 .env
 npm-debug.log
+test-results/
+playwright-report/
+blob-report/
 
-# macOS
+# macOS System Files
 .DS_Store
 .AppleDouble
 .LSOverride
@@ -12,10 +15,20 @@ npm-debug.log
 .Spotlight-V100
 .Trashes
 
-# Capacitor / iOS
+# Capacitor & iOS Native
 ios/App/App/public/
 ios/App/Pods/
 ios/App/build/
+ios/App/App.xcworkspace/xcuserdata
 ios/DerivedData/
-*.xcworkspace/xcuserdata
-**/*.xcresult
+
+# Xcode specific
+*.xcworkspace/xcuserdata/
+*.userdata
+*.lssharedfilelist
+*.lock-wscript
+.tool-versions
+
+# Agent / IDrive Specifics
+.vscode/
+.agent/
