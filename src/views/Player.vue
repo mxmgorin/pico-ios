@@ -238,26 +238,30 @@ onMounted(async () => {
     if (cartData) {
       // no init() needed, bridge is singleton
       console.log("⚡️ Booting via slot insertion (cart.p8.png)...");
-      await picoBridge.boot(effectiveCartName, cartData);
 
-      // # hook into pico-8 internal exit
-      hookPicoQuit();
+      // stagger boot
+      setTimeout(async () => {
+        await picoBridge.boot(effectiveCartName, cartData);
 
-      setTimeout(() => {
-        loading.value = false;
+        // # hook into pico-8 internal exit
+        hookPicoQuit();
 
-        // # deep link auto-load
-        if (route.query.state) {
-          console.log(
-            "⚡️ [Player] Deep Link: Auto-loading state:",
-            route.query.state
-          );
-          setTimeout(async () => {
-            await picoBridge.loadRAMState("Saves/" + route.query.state);
-            showToast("AUTO-LOADED");
-          }, 500); // grace period
-        }
-      }, 1500);
+        setTimeout(() => {
+          loading.value = false;
+
+          // # deep link auto-load
+          if (route.query.state) {
+            console.log(
+              "⚡️ [Player] Deep Link: Auto-loading state:",
+              route.query.state
+            );
+            setTimeout(async () => {
+              await picoBridge.loadRAMState("Saves/" + route.query.state);
+              showToast("AUTO-LOADED");
+            }, 500); // grace period
+          }
+        }, 1500);
+      }, 50);
     } else {
       throw new Error("No data found for cart");
     }
@@ -283,7 +287,7 @@ const menuButtons = [
 ];
 
 let menuDebounce = false;
-const toggleMenu = () => {
+const toggleMenu = async () => {
   // # debounce to prevent sticky touches
   if (menuDebounce) return;
   menuDebounce = true;
@@ -294,6 +298,11 @@ const toggleMenu = () => {
   isMenuOpen.value = !isMenuOpen.value;
   if (isMenuOpen.value) {
     picoBridge.pause();
+    // auto-save state on pause
+    if (window.FS && window.pico8_engine_ready) {
+      const success = await window.picoBridge.captureFullRAMState();
+      if (success) showToast("Game Saved");
+    }
   } else {
     picoBridge.resume();
   }
@@ -395,6 +404,12 @@ function resetGame() {
 }
 
 async function exitGame() {
+  // 0. Auto-Save RAM State
+  if (window.picoBridge && window.pico8_engine_ready) {
+    showToast("Saving...");
+    await window.picoBridge.captureFullRAMState();
+  }
+
   // 1. Save data (Async wait)
   if (window.picoSave) {
     console.log("💾 [Player] Auto-saving before exit...");
@@ -428,9 +443,10 @@ function hookPicoQuit() {
       } catch (e) {}
 
       picoBridge.shutdown();
-      window.location.replace(
-        window.location.origin + window.location.pathname
-      );
+
+      // preserve query parameters so we reload the cart, not the lib
+      const targetUrl = window.location.href;
+      window.location.replace(targetUrl);
     };
   }
 }

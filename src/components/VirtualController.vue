@@ -25,6 +25,8 @@
         -webkit-tap-highlight-color: transparent;
         touch-action: none;
         -webkit-user-select: none;
+        user-select: none;
+        will-change: transform;
       "
     >
       <!-- glow effect -->
@@ -171,7 +173,12 @@
 
     <!-- action buttons -->
     <div
-      class="relative w-36 h-48 landscape:w-full landscape:h-full small:w-36 small:h-48 pointer-events-auto mr-2 flex items-end justify-end landscape:mr-0 landscape:items-center landscape:justify-center landscape:col-start-3"
+      ref="actionZoneRef"
+      class="relative w-36 h-48 landscape:w-full landscape:h-full small:w-36 small:h-48 pointer-events-auto mr-0 flex items-end justify-end landscape:items-center landscape:justify-center landscape:col-start-3"
+      @touchstart.prevent="handleActionTouch"
+      @touchmove.prevent="handleActionTouch"
+      @touchend.prevent="handleActionTouch"
+      @touchcancel.prevent="handleActionTouch"
     >
       <!-- button container -->
       <div
@@ -179,40 +186,48 @@
       >
         <!-- button 1 (right) -->
         <button
-          class="absolute bottom-24 right-2 landscape:bottom-auto landscape:top-0 landscape:right-0 w-20 h-20 small:w-16 small:h-16 rounded-full shadow-[0_0_15px_rgba(255,255,255,0.3)] backdrop-blur-md active:translate-y-1 active:shadow-none transition-all duration-75 flex items-center justify-center group border pointer-events-auto"
-          :class="
+          ref="btn1Ref"
+          class="absolute bottom-24 right-1 landscape:bottom-auto landscape:top-0 landscape:right-0 w-20 h-20 small:w-16 small:h-16 rounded-full shadow-[0_0_15px_rgba(255,255,255,0.3)] backdrop-blur-md transition-transform duration-75 flex items-center justify-center border pointer-events-none overflow-hidden will-change-transform"
+          :class="[
             btn1.label === 'o'
               ? 'bg-[rgba(255,0,77,0.15)] border-[#FF004D]/80'
-              : 'bg-[rgba(41,173,255,0.15)] border-[#29ADFF]/80'
-          "
-          style="-webkit-tap-highlight-color: transparent"
-          @touchstart.stop.prevent="pressKey(btn1.code)"
-          @touchend.stop.prevent="releaseKey(btn1.code)"
-          @mousedown.stop.prevent="pressKey(btn1.code)"
-          @mouseup.stop.prevent="releaseKey(btn1.code)"
+              : 'bg-[rgba(41,173,255,0.15)] border-[#29ADFF]/80',
+            activeKeys.has(btn1.code) ? 'scale-95' : '',
+          ]"
         >
+          <!-- active overlay -->
+          <div
+            class="absolute inset-0 bg-white/20 transition-opacity duration-75"
+            :class="activeKeys.has(btn1.code) ? 'opacity-100' : 'opacity-0'"
+          ></div>
+
           <span
-            class="text-white font-bold text-3xl font-pico opacity-90 group-active:opacity-100 flex items-center justify-center translate-x-[2px] -translate-y-[3px] pointer-events-none"
+            class="text-white font-bold text-3xl font-pico opacity-90 flex items-center justify-center translate-x-[2px] -translate-y-[3px] z-10"
+            :class="{ 'opacity-100': activeKeys.has(btn1.code) }"
             >{{ btn1.label }}</span
           >
         </button>
 
         <!-- button 2 (left) -->
         <button
-          class="absolute bottom-4 right-14 landscape:bottom-0 landscape:left-0 w-20 h-20 small:w-16 small:h-16 rounded-full shadow-[0_0_15px_rgba(255,255,255,0.3)] backdrop-blur-md active:translate-y-1 active:shadow-none transition-all duration-75 flex items-center justify-center group border pointer-events-auto"
-          :class="
+          ref="btn2Ref"
+          class="absolute bottom-4 right-16 landscape:bottom-0 landscape:left-0 w-20 h-20 small:w-16 small:h-16 rounded-full shadow-[0_0_15px_rgba(255,255,255,0.3)] backdrop-blur-md transition-transform duration-75 flex items-center justify-center border pointer-events-none overflow-hidden will-change-transform"
+          :class="[
             btn2.label === 'o'
               ? 'bg-[rgba(255,0,77,0.15)] border-[#FF004D]/80'
-              : 'bg-[rgba(41,173,255,0.15)] border-[#29ADFF]/80'
-          "
-          style="-webkit-tap-highlight-color: transparent"
-          @touchstart.stop.prevent="pressKey(btn2.code)"
-          @touchend.stop.prevent="releaseKey(btn2.code)"
-          @mousedown.stop.prevent="pressKey(btn2.code)"
-          @mouseup.stop.prevent="releaseKey(btn2.code)"
+              : 'bg-[rgba(41,173,255,0.15)] border-[#29ADFF]/80',
+            activeKeys.has(btn2.code) ? 'scale-95' : '',
+          ]"
         >
+          <!-- active overlay -->
+          <div
+            class="absolute inset-0 bg-white/20 transition-opacity duration-75"
+            :class="activeKeys.has(btn2.code) ? 'opacity-100' : 'opacity-0'"
+          ></div>
+
           <span
-            class="text-white font-bold text-3xl font-pico opacity-90 group-active:opacity-100 flex items-center justify-center translate-x-[2px] -translate-y-[3px] pointer-events-none"
+            class="text-white font-bold text-3xl font-pico opacity-90 flex items-center justify-center translate-x-[2px] -translate-y-[3px] z-10"
+            :class="{ 'opacity-100': activeKeys.has(btn2.code) }"
             >{{ btn2.label }}</span
           >
         </button>
@@ -259,7 +274,7 @@
 <script setup>
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { picoBridge } from "../services/PicoBridge";
-import { ref, reactive, computed } from "vue";
+import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
 import { useLibraryStore } from "../stores/library";
 import { storeToRefs } from "pinia";
 
@@ -270,88 +285,175 @@ const { swapButtons } = storeToRefs(libraryStore);
 // # active keys tracking
 const activeKeys = reactive(new Set());
 
-// # button mapping (btn1 = right/top, btn2 = left/bottom)
-const btn1 = computed(
-  () =>
-    swapButtons.value
-      ? { label: "x", code: 88, color: "#29ADFF" } // swapped: right is X
-      : { label: "o", code: 90, color: "#FF004D" } // default: right is O
+// # button mapping
+const btn1 = computed(() =>
+  swapButtons.value
+    ? { label: "x", code: 88, color: "#29ADFF" }
+    : { label: "o", code: 90, color: "#FF004D" }
 );
 
-const btn2 = computed(
-  () =>
-    swapButtons.value
-      ? { label: "o", code: 90, color: "#FF004D" } // swapped: left is O
-      : { label: "x", code: 88, color: "#29ADFF" } // default: left is X
+const btn2 = computed(() =>
+  swapButtons.value
+    ? { label: "o", code: 90, color: "#FF004D" }
+    : { label: "x", code: 88, color: "#29ADFF" }
 );
 
-// # optimization: touch tracking & layout caching
 const dpadRef = ref(null);
+const actionZoneRef = ref(null);
+const btn1Ref = ref(null);
+const btn2Ref = ref(null);
+
 let dpadTouchId = null;
-const dpadCenter = { x: 0, y: 0 };
 let isMouseDown = false;
 let audioResumed = false;
+let currentDirection = null;
+
+// internal state
+let dpadState = {
+  x: 0, // logical center x
+  y: 0, // logical center y
+  visualX: 0, // svg center x
+  visualY: 0, // svg center y
+  rect: null,
+  startX: 0, // touch start x
+  startY: 0, // touch start y
+  lastTouchX: 0,
+  lastTouchY: 0,
+  lastInputTime: 0,
+  driftFrameId: null,
+};
+
+let actionState = {
+  btn1Rect: null,
+  btn2Rect: null,
+};
 
 const emit = defineEmits(["menu"]);
 
 const cacheDpadMetrics = () => {
-  if (!dpadRef.value) return;
-  const rect = dpadRef.value.getBoundingClientRect();
-  dpadCenter.x = rect.left + rect.width / 2;
-  dpadCenter.y = rect.top + rect.height / 2;
-  // store radius/rect for hit detection if needed, but rect is enough for now
-  dpadCenter.rect = rect;
+  if (dpadRef.value) {
+    const rect = dpadRef.value.getBoundingClientRect();
+    dpadState.rect = rect;
+    dpadState.visualX = rect.left + rect.width / 2;
+    dpadState.visualY = rect.top + rect.height / 2;
+  }
+  if (btn1Ref.value)
+    actionState.btn1Rect = btn1Ref.value.getBoundingClientRect();
+  if (btn2Ref.value)
+    actionState.btn2Rect = btn2Ref.value.getBoundingClientRect();
+};
+
+const isInsideRect = (x, y, rect, padding = 20) => {
+  if (!rect) return false;
+  return (
+    x >= rect.left - padding &&
+    x <= rect.right + padding &&
+    y >= rect.top - padding &&
+    y <= rect.bottom + padding
+  );
+};
+
+const updateKey = (code, isPressed) => {
+  const wasPressed = activeKeys.has(code);
+  if (isPressed && !wasPressed) pressKey(code);
+  else if (!isPressed && wasPressed) releaseKey(code);
+};
+
+// add piano push
+const handleActionTouch = (e) => {
+  if (!actionState.btn1Rect) cacheDpadMetrics();
+
+  const touches = e.touches;
+  let isBtn1 = false;
+  let isBtn2 = false;
+
+  for (let i = 0; i < touches.length; i++) {
+    const t = touches[i];
+    const x = t.clientX;
+    const y = t.clientY;
+
+    if (isInsideRect(x, y, actionState.btn1Rect)) isBtn1 = true;
+    if (isInsideRect(x, y, actionState.btn2Rect)) isBtn2 = true;
+  }
+
+  updateKey(btn1.value.code, isBtn1);
+  updateKey(btn2.value.code, isBtn2);
 };
 
 const handleTouch = (e) => {
-  // refresh metrics if needed (or throttle this)
-  if (!dpadCenter.x) cacheDpadMetrics();
-
-  // 1. mouse fallback
   if (e.type.startsWith("mouse")) {
     handleMouseInput(e);
     return;
   }
 
-  // 2. touch handling
-  const touches = Array.from(e.changedTouches || []);
+  const touches = e.changedTouches;
+  const now = Date.now();
 
-  // start: if we aren't tracking a finger yet, check if any new touch is inside the D-Pad
+  // new interaction
   if (dpadTouchId === null) {
-    for (const t of touches) {
+    for (let i = 0; i < touches.length; i++) {
+      const t = touches[i];
+
+      // lazy init cache
+      if (!dpadState.rect) cacheDpadMetrics();
+
       if (isInsideDpad(t.clientX, t.clientY)) {
         dpadTouchId = t.identifier;
-        cacheDpadMetrics();
+        dpadState.startX = t.clientX;
+        dpadState.startY = t.clientY;
+        dpadState.lastTouchX = t.clientX;
+        dpadState.lastTouchY = t.clientY;
+        dpadState.lastInputTime = now;
+
+        // hybrid logic: absolute vs relative start
+        const distFromVisualSq = getDistSq(
+          t.clientX,
+          t.clientY,
+          dpadState.visualX,
+          dpadState.visualY
+        );
+
+        // 20px radius = 400sq
+        if (distFromVisualSq > 400) {
+          // far tap -> anchor to visual center
+          dpadState.x = dpadState.visualX;
+          dpadState.y = dpadState.visualY;
+        } else {
+          // near tap -> anchor to touch
+          dpadState.x = t.clientX;
+          dpadState.y = t.clientY;
+        }
+
         processDpadCoordinates(t.clientX, t.clientY);
-        break; // claim this finger
+        return;
       }
     }
   }
 
-  // move: if we ARE tracking a finger, check if it moved
   if (dpadTouchId !== null) {
-    const activeTouch = touches.find((t) => t.identifier === dpadTouchId);
-    if (activeTouch) {
-      processDpadCoordinates(activeTouch.clientX, activeTouch.clientY);
+    for (let i = 0; i < touches.length; i++) {
+      const t = touches[i];
+      if (t.identifier === dpadTouchId) {
+        dpadState.lastTouchX = t.clientX;
+        dpadState.lastTouchY = t.clientY;
+        dpadState.lastInputTime = now;
+
+        processDpadCoordinates(t.clientX, t.clientY);
+        return;
+      }
     }
   }
 };
 
 const handleTouchEnd = (e) => {
   if (e.changedTouches) {
-    // if tracking a touch, see if it was the one that ended/cancelled
-    if (dpadTouchId !== null) {
-      const endedTouch = Array.from(e.changedTouches).find(
-        (t) => t.identifier === dpadTouchId
-      );
-
-      if (endedTouch) {
-        // our D-Pad finger lifted
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === dpadTouchId) {
         clearDpadState();
+        return;
       }
     }
   } else {
-    // mouse up or other generic end
     clearDpadState();
   }
 };
@@ -359,32 +461,61 @@ const handleTouchEnd = (e) => {
 const clearDpadState = () => {
   dpadTouchId = null;
   isMouseDown = false;
-  // release all active keys
-  for (const k of activeKeys) {
-    sendKey(k, "keyup");
+  currentDirection = null;
+
+  for (const k of DPAD_CODES) {
+    if (activeKeys.has(k)) {
+      sendKey(k, "keyup");
+      activeKeys.delete(k);
+    }
   }
-  activeKeys.clear();
 };
 
 const handleMouseInput = (e) => {
   if (e.type === "mousedown") {
     isMouseDown = true;
     cacheDpadMetrics();
-  }
-  if (e.type === "mouseup") {
+    dpadState.lastInputTime = Date.now();
+
+    if (dpadState.driftFrameId) {
+      cancelAnimationFrame(dpadState.driftFrameId);
+      dpadState.driftFrameId = null;
+    }
+
+    dpadState.startX = e.clientX;
+    dpadState.startY = e.clientY;
+    dpadState.lastTouchX = e.clientX;
+    dpadState.lastTouchY = e.clientY;
+
+    const distSq = getDistSq(
+      e.clientX,
+      e.clientY,
+      dpadState.visualX,
+      dpadState.visualY
+    );
+    if (distSq > 400) {
+      dpadState.x = dpadState.visualX;
+      dpadState.y = dpadState.visualY;
+    } else {
+      dpadState.x = e.clientX;
+      dpadState.y = e.clientY;
+    }
+
+    processDpadCoordinates(e.clientX, e.clientY);
+  } else if (e.type === "mouseup") {
     clearDpadState();
-    return;
+  } else if (isMouseDown) {
+    dpadState.lastInputTime = Date.now();
+    dpadState.lastTouchX = e.clientX;
+    dpadState.lastTouchY = e.clientY;
+    processDpadCoordinates(e.clientX, e.clientY);
   }
-  if (!isMouseDown) return;
-  // mouse dev test
-  processDpadCoordinates(e.clientX, e.clientY);
 };
 
 const isInsideDpad = (x, y) => {
-  if (!dpadCenter.rect) cacheDpadMetrics();
-  const r = dpadCenter.rect;
-  // pad the hit area slightly?
-  const PAD = 20;
+  const r = dpadState.rect;
+  if (!r) return false;
+  const PAD = 40;
   return (
     x >= r.left - PAD &&
     x <= r.right + PAD &&
@@ -393,64 +524,172 @@ const isInsideDpad = (x, y) => {
   );
 };
 
+const getDistSq = (x1, y1, x2, y2) => {
+  const dx = x1 - x2;
+  const dy = (y1 - y2) * 1.1;
+  return dx * dx + dy * dy;
+};
+
 const processDpadCoordinates = (clientX, clientY) => {
-  const dx = clientX - dpadCenter.x;
-  const dy = clientY - dpadCenter.y;
+  let dx = clientX - dpadState.x;
+  let dy = (clientY - dpadState.y) * 1.1;
+  const distSq = dx * dx + dy * dy;
+  if (distSq < 225) {
+    // 15px radius
+    if (currentDirection) {
+      currentDirection = null;
+      triggerKeys([]);
+    }
+    return;
+  }
 
-  // ## hysteresis patch
-  const ENGAGE = 10; // Tightened from 20 for Celeste
-  const RELEASE = 8;
-  const newKeys = [];
+  // dynamic center shift (ghost follow)
+  if (distSq > 3600) {
+    // 5% shift
+    dpadState.x += dx * 0.05;
+    dpadState.y += dy * 0.05;
 
-  // helper to check axis state
-  const checkAxis = (value, positiveKey, negativeKey) => {
-    // check positive direction
-    if (activeKeys.has(positiveKey)) {
-      if (value > RELEASE) newKeys.push(positiveKey);
+    // recalc delta
+    dx = clientX - dpadState.x;
+    dy = (clientY - dpadState.y) * 1.1;
+  }
+
+  let angle = Math.atan2(dy, dx) * RAD_TO_DEG;
+  if (angle < 0) angle += 360;
+
+  const snap = 8;
+  if (angle > 360 - snap || angle < snap) angle = 0;
+  else if (angle > 90 - snap && angle < 90 + snap) angle = 90;
+  else if (angle > 180 - snap && angle < 180 + snap) angle = 180;
+  else if (angle > 270 - snap && angle < 270 + snap) angle = 270;
+
+  let newDirection = getDirectionFromAngle(angle, currentDirection);
+
+  if (newDirection !== currentDirection) {
+    currentDirection = newDirection;
+    Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+    triggerKeys(getKeysForDirection(newDirection));
+  }
+};
+
+const getDirectionFromAngle = (angle, currentDir) => {
+  // tuned windows
+  const stdHW = 32.5;
+
+  // asymmetric top-left
+  const reducedHW = 30.0;
+
+  // standard hysteresis
+  const buffer = 5;
+
+  // sticky diagonal
+  const isDiag = currentDir && currentDir.includes("_");
+  const stickyPenalty = isDiag ? 5 : 0;
+
+  const checkSector = (ang, center, hwLeft, hwRight) => {
+    let lower = center - hwLeft;
+    let upper = center + hwRight;
+
+    // hysteresis: expand if it's the current direction
+    if (currentDir === getCardinalName(center)) {
+      lower -= buffer;
+      upper += buffer;
     } else {
-      if (value > ENGAGE) newKeys.push(positiveKey);
+      // if sticky diagonal is active, shrink cardinal target
+      lower += stickyPenalty;
+      upper -= stickyPenalty;
     }
 
-    // check negative direction
-    if (activeKeys.has(negativeKey)) {
-      if (value < -RELEASE) newKeys.push(negativeKey);
-    } else {
-      if (value < -ENGAGE) newKeys.push(negativeKey);
-    }
+    if (lower >= 0 && upper < 360) return ang >= lower && ang <= upper;
+    // wrap
+    if (lower < 0) lower += 360;
+    if (upper >= 360) upper -= 360;
+    return ang >= lower || ang <= upper;
   };
 
-  // horizontal x
-  checkAxis(dx, 39, 37);
+  // right (0) - standard
+  if (checkSector(angle, 0, stdHW, stdHW)) return "RIGHT";
 
-  // vertical y
-  checkAxis(dy, 40, 38);
+  // down (90) - standard
+  if (checkSector(angle, 90, stdHW, stdHW)) return "DOWN";
 
-  // # dispatch changes
-  triggerKeys(newKeys);
+  // left (180) - asymmetric upper side
+  if (checkSector(angle, 180, stdHW, reducedHW)) return "LEFT";
+
+  // up (270) - asymmetric left side
+  if (checkSector(angle, 270, reducedHW, stdHW)) return "UP";
+
+  // diagonals (fallback)
+  if (angle < 90) return "DOWN_RIGHT";
+  if (angle < 180) return "DOWN_LEFT";
+  if (angle < 270) return "UP_LEFT";
+  return "UP_RIGHT";
+};
+
+const getCardinalName = (deg) => {
+  if (deg === 0) return "RIGHT";
+  if (deg === 90) return "DOWN";
+  if (deg === 180) return "LEFT";
+  if (deg === 270) return "UP";
+  return null;
+};
+
+const RAD_TO_DEG = 180 / Math.PI;
+const DPAD_CODES = new Set([37, 38, 39, 40]);
+
+// static allocations (zero GC)
+const KEYS_UP = [38];
+const KEYS_DOWN = [40];
+const KEYS_LEFT = [37];
+const KEYS_RIGHT = [39];
+const KEYS_UP_LEFT = [38, 37];
+const KEYS_UP_RIGHT = [38, 39];
+const KEYS_DOWN_LEFT = [40, 37];
+const KEYS_DOWN_RIGHT = [40, 39];
+const KEYS_EMPTY = [];
+
+const getKeysForDirection = (dir) => {
+  if (!dir) return KEYS_EMPTY;
+  switch (dir) {
+    case "UP":
+      return KEYS_UP;
+    case "DOWN":
+      return KEYS_DOWN;
+    case "LEFT":
+      return KEYS_LEFT;
+    case "RIGHT":
+      return KEYS_RIGHT;
+    case "UP_LEFT":
+      return KEYS_UP_LEFT;
+    case "UP_RIGHT":
+      return KEYS_UP_RIGHT;
+    case "DOWN_LEFT":
+      return KEYS_DOWN_LEFT;
+    case "DOWN_RIGHT":
+      return KEYS_DOWN_RIGHT;
+    default:
+      return KEYS_EMPTY;
+  }
 };
 
 const triggerKeys = (keyCodes) => {
-  // 1. identify keys to release (was active, now not)
+  // release D-pad keys not in new set
   for (const k of activeKeys) {
-    if (!keyCodes.includes(k)) {
+    if (DPAD_CODES.has(k) && !keyCodes.includes(k)) {
       sendKey(k, "keyup");
       activeKeys.delete(k);
     }
   }
-
-  // 2. identify keys to press (not active, now is)
+  // press new D-pad keys
   for (const k of keyCodes) {
     if (!activeKeys.has(k)) {
       sendKey(k, "keydown");
       activeKeys.add(k);
-      // haptic only on fresh press
-      Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
     }
   }
 };
 
 const sendKey = (keyCode, type) => {
-  // # audio resume trigger
   if (!audioResumed && type === "keydown") {
     picoBridge.resumeAudio();
     audioResumed = true;
@@ -461,21 +700,25 @@ const sendKey = (keyCode, type) => {
     38: "ArrowUp",
     39: "ArrowRight",
     40: "ArrowDown",
+    90: "z",
+    88: "x",
+    13: "Enter",
+    27: "Escape",
   };
-  const key = map[keyCode];
+  const key = map[keyCode] || "";
+
   const event = new KeyboardEvent(type, {
     key: key,
-    code: key,
+    code: getCodeName(keyCode),
     keyCode: keyCode,
     which: keyCode,
     bubbles: true,
+    cancelable: true,
+    view: window,
   });
 
   window.dispatchEvent(event);
-
-  // # legacy bitmask
-  if (type === "keydown") updateBitmask(keyCode, true);
-  else updateBitmask(keyCode, false);
+  updateBitmask(keyCode, type === "keydown");
 };
 
 const pressKey = async (code) => {
@@ -496,6 +739,7 @@ const pressKey = async (code) => {
 
   window.dispatchEvent(event);
   updateBitmask(code, true);
+  activeKeys.add(code);
 
   try {
     await Haptics.impact({ style: ImpactStyle.Light });
@@ -515,9 +759,10 @@ const releaseKey = (code) => {
 
   window.dispatchEvent(event);
   updateBitmask(code, false);
+  activeKeys.delete(code);
 };
 
-// # event helpers
+// # helpers
 function getKeyName(code) {
   if (code === 37) return "ArrowLeft";
   if (code === 39) return "ArrowRight";
@@ -542,17 +787,24 @@ function getCodeName(code) {
   return "";
 }
 
-// # legacy global array support
 function updateBitmask(code, isDown) {
   if (!window.pico8_buttons) return;
-  let bit = 0;
-  if (code === 37) bit = 1; // Left
-  if (code === 39) bit = 2; // Right
-  if (code === 38) bit = 4; // Up
-  if (code === 40) bit = 8; // Down
-  if (code === 90) bit = 16; // Z (O)
-  if (code === 88) bit = 32; // X (X)
-  if (code === 13) bit = 64; // Pause (Menu)
+  const bit =
+    code === 37
+      ? 1
+      : code === 39
+      ? 2
+      : code === 38
+      ? 4
+      : code === 40
+      ? 8
+      : code === 90
+      ? 16
+      : code === 88
+      ? 32
+      : code === 13
+      ? 64
+      : 0;
 
   if (bit) {
     if (isDown) window.pico8_buttons[0] |= bit;
@@ -570,4 +822,17 @@ const openMenu = (e) => {
     Haptics.impact({ style: ImpactStyle.Medium });
   } catch (e) {}
 };
+
+onMounted(() => {
+  window.addEventListener("resize", cacheDpadMetrics);
+  window.addEventListener("orientationchange", () =>
+    setTimeout(cacheDpadMetrics, 300)
+  );
+  setTimeout(cacheDpadMetrics, 200);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("resize", cacheDpadMetrics);
+  clearDpadState();
+});
 </script>

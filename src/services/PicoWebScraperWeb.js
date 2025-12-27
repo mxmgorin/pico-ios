@@ -152,17 +152,6 @@ export class PicoWebScraperWeb {
       download_url: proxiedDownloadURL, // legacy support
     };
 
-    // log full object for verification
-    console.log("Parsed Game Object:", {
-      id: gameObj.id,
-      title: gameObj.title,
-      author: gameObj.author,
-      thumb_url: gameObj.thumb_url,
-      source_page_url: gameObj.source_page_url,
-      fallback_url: gameObj.fallback_url,
-      download_url: gameObj.download_url,
-    });
-
     games.push(gameObj);
   }
 

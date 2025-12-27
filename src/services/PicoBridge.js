@@ -61,7 +61,6 @@ class Pico8Bridge {
 
     // # silence internal engine
     localStorage.setItem("pico8_debug", "0");
-    this.isActive = true;
 
     // ## prepare global state for injection
     // # storage for poller to pick up
@@ -117,15 +116,36 @@ class Pico8Bridge {
 
           console.log("[Pico8Bridge] preRun: starting vfs poller...");
           let pollCount = 0;
-          const MAX_POLLS = 300; // # 15 seconds timeout
+          const MAX_POLLS = 1500;
 
-          const poller = setInterval(async () => {
+          // clear previous if exists to prevent zombies
+          if (window.pico8_poller) clearInterval(window.pico8_poller);
+
+          window.pico8_poller = setInterval(async () => {
             pollCount++;
 
             // ## the one true fs check
             const mod = window.Module;
             const engineReady =
               mod && mod.FS && typeof mod.callMain === "function";
+
+            // aggressive cleanup: if engine is already running, stop polling
+            if (
+              window.p8_is_running &&
+              window.pico8_engine_ready &&
+              !window._bbs_cartdat &&
+              !window._cartdat
+            ) {
+              // Wait a few cycles to ensure transition, then kill
+              if (pollCount > 100) {
+                console.log(
+                  "🚀 [PicoBoot] Engine running stable, killing poller."
+                );
+                clearInterval(window.pico8_poller);
+                window.pico8_poller = null;
+                return;
+              }
+            }
 
             let fs = null;
             if (engineReady) {
@@ -145,7 +165,7 @@ class Pico8Bridge {
             try {
               if (fs && fs.analyzePath("/cart.png").exists) {
                 cartExists = true;
-                if (pollCount % 20 === 0)
+                if (pollCount % 100 === 0)
                   console.log(
                     "🚀 [PicoBoot] Poller confirmed /cart.png exists on VFS."
                   );
@@ -155,7 +175,7 @@ class Pico8Bridge {
             const hasCart = !!window._cartdat || cartExists;
 
             // debug heartbeat (every 1s)
-            if (pollCount % 20 === 0) {
+            if (pollCount % 100 === 0) {
               console.log(
                 `[PicoBoot] poll #${pollCount}: fs=${!!fs}, canvas=${!!canvasEl}, callmain=${hasCallMain}, cart=${hasCart}`
               );
@@ -164,16 +184,15 @@ class Pico8Bridge {
             // timeout failsafe
             if (pollCount > MAX_POLLS) {
               console.error("[Error] TIMEOUT: engine failed to initialize.");
-              clearInterval(poller);
+              clearInterval(window.pico8_poller);
+              window.pico8_poller = null;
               haptics.error();
               return;
             }
 
             // expose sync methods globally
             window.picoSave = () => {
-              console.warn(
-                "� [PicoBridge] picoSave blocked during boot debugging."
-              );
+              // block saves during boot
               return Promise.resolve(true);
             };
 
@@ -238,7 +257,8 @@ class Pico8Bridge {
                     }
 
                     // Stop poller & force run
-                    clearInterval(poller);
+                    clearInterval(window.pico8_poller);
+                    window.pico8_poller = null;
 
                     // Clear both slots to prevent race conditions
                     delete window._bbs_cartdat;
@@ -265,7 +285,8 @@ class Pico8Bridge {
                     } catch (e) {}
                     fs.writeFile("/cart.png", window._cartdat);
 
-                    clearInterval(poller);
+                    clearInterval(window.pico8_poller);
+                    window.pico8_poller = null;
 
                     // Clear local slot
                     delete window._cartdat;
@@ -284,7 +305,7 @@ class Pico8Bridge {
                 console.error("[Error] vfs/boot error:", e);
               }
             }
-          }, 50); // fast poll
+          }, 10); // poll every 10ms
         },
       ],
 
@@ -331,6 +352,12 @@ class Pico8Bridge {
     // # kill switch for pico8.js loop
     window.Pico8Kill = true;
 
+    // # stop boot poller if active
+    if (window.pico8_poller) {
+      clearInterval(window.pico8_poller);
+      window.pico8_poller = null;
+    }
+
     // # attempt clean engine pause
     try {
       if (window.Module && window.Module.pauseMainLoop) {
@@ -354,15 +381,22 @@ class Pico8Bridge {
     window.Module = null;
   }
 
-  resumeAudio() {
+  async resumeAudio() {
     // # ios safari audio unlock
     const ctx =
       window.pico8_audio_context ||
       (window.Module && window.Module.sdl_audio_context);
+
     if (ctx && ctx.state === "suspended") {
-      ctx.resume().then(() => {
-        console.log("[pico8bridge] audio context resumed");
-      });
+      // silent buffer kickstart (force thread priority)
+      const buffer = ctx.createBuffer(1, 1, 22050);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start(0);
+
+      await ctx.resume().catch(() => {});
+      console.log("[PicoBridge] AudioContext resumed (w/ kickstart)");
     }
   }
 
