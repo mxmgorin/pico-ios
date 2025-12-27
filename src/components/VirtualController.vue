@@ -18,76 +18,117 @@
   >
     <!-- d-pad container left -->
     <!-- # landscape: center left -->
-    <div
-      ref="dpadRef"
-      class="relative w-40 h-40 small:w-36 small:h-36 ml-2 active:scale-95 transition-transform duration-100 ease-out landscape:ml-0 landscape:self-center landscape:justify-self-center touch-action-none landscape:col-start-1"
-      style="
-        -webkit-tap-highlight-color: transparent;
-        touch-action: none;
-        -webkit-user-select: none;
-        user-select: none;
-        will-change: transform;
-      "
-    >
-      <!-- glow effect -->
+    <!-- d-pad container left -->
+    <!-- landscape: center left -->
+    <template v-if="!useJoystick">
       <div
-        class="absolute inset-0 bg-white/5 blur-3xl rounded-full transform -translate-y-4"
-      ></div>
-
-      <!-- d-pad svg -->
-      <svg
-        viewBox="0 0 100 100"
-        class="w-full h-full drop-shadow-2xl pointer-events-none"
+        ref="dpadRef"
+        class="relative w-40 h-40 small:w-36 small:h-36 ml-2 active:scale-95 transition-transform duration-100 ease-out landscape:ml-0 landscape:self-center landscape:justify-self-center touch-action-none landscape:col-start-1"
+        style="
+          -webkit-tap-highlight-color: transparent;
+          touch-action: none;
+          -webkit-user-select: none;
+          user-select: none;
+          will-change: transform;
+        "
       >
-        <defs>
-          <linearGradient
-            id="glass-gradient"
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="100%"
-          >
-            <stop offset="0%" stop-color="rgba(255, 255, 255, 0.2)" />
-            <stop offset="50%" stop-color="rgba(255, 255, 255, 0.05)" />
-            <stop offset="100%" stop-color="rgba(255, 255, 255, 0.15)" />
-          </linearGradient>
-        </defs>
+        <!-- glow effect -->
+        <div
+          class="absolute inset-0 bg-white/5 blur-3xl rounded-full transform -translate-y-4"
+        ></div>
 
-        <g stroke="rgba(255,255,255,0.2)" stroke-width="0.5">
-          <path
-            d="M36 34 V12 A4 4 0 0 1 64 12 V34 H36"
-            fill="url(#glass-gradient)"
-            :class="{ 'fill-white/30': activeKeys.has(38) }"
-            class="transition-colors duration-150"
-          />
-          <path
-            d="M36 66 V88 A4 4 0 0 0 64 88 V66 H36"
-            fill="url(#glass-gradient)"
-            :class="{ 'fill-white/30': activeKeys.has(40) }"
-            class="transition-colors duration-150"
-          />
-          <path
-            d="M34 36 H12 A4 4 0 0 0 12 64 H34 V36"
-            fill="url(#glass-gradient)"
-            :class="{ 'fill-white/30': activeKeys.has(37) }"
-            class="transition-colors duration-150"
-          />
-          <path
-            d="M66 36 H88 A4 4 0 0 1 88 64 H66 V36"
-            fill="url(#glass-gradient)"
-            :class="{ 'fill-white/30': activeKeys.has(39) }"
-            class="transition-colors duration-150"
-          />
-          <rect
-            x="36"
-            y="36"
-            width="28"
-            height="28"
-            fill="url(#glass-gradient)"
-          />
-        </g>
-      </svg>
-    </div>
+        <!-- d-pad svg -->
+        <svg
+          viewBox="0 0 100 100"
+          class="w-full h-full drop-shadow-2xl pointer-events-none"
+        >
+          <defs>
+            <linearGradient
+              id="glass-gradient"
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
+              <stop offset="0%" stop-color="rgba(255, 255, 255, 0.2)" />
+              <stop offset="50%" stop-color="rgba(255, 255, 255, 0.05)" />
+              <stop offset="100%" stop-color="rgba(255, 255, 255, 0.15)" />
+            </linearGradient>
+          </defs>
+
+          <g stroke="rgba(255,255,255,0.2)" stroke-width="0.5">
+            <path
+              d="M36 34 V12 A4 4 0 0 1 64 12 V34 H36"
+              fill="url(#glass-gradient)"
+              :class="{ 'fill-white/30': activeKeys.has(38) }"
+              class="transition-colors duration-150"
+            />
+            <path
+              d="M36 66 V88 A4 4 0 0 0 64 88 V66 H36"
+              fill="url(#glass-gradient)"
+              :class="{ 'fill-white/30': activeKeys.has(40) }"
+              class="transition-colors duration-150"
+            />
+            <path
+              d="M34 36 H12 A4 4 0 0 0 12 64 H34 V36"
+              fill="url(#glass-gradient)"
+              :class="{ 'fill-white/30': activeKeys.has(37) }"
+              class="transition-colors duration-150"
+            />
+            <path
+              d="M66 36 H88 A4 4 0 0 1 88 64 H66 V36"
+              fill="url(#glass-gradient)"
+              :class="{ 'fill-white/30': activeKeys.has(39) }"
+              class="transition-colors duration-150"
+            />
+            <rect
+              x="36"
+              y="36"
+              width="28"
+              height="28"
+              fill="url(#glass-gradient)"
+            />
+          </g>
+        </svg>
+      </div>
+    </template>
+
+    <!-- joystick container -->
+    <template v-else>
+      <div
+        ref="dpadRef"
+        class="relative w-40 h-40 small:w-36 small:h-36 ml-2 landscape:ml-0 landscape:self-center landscape:justify-self-center touch-action-none landscape:col-start-1 flex items-center justify-center"
+        style="
+          -webkit-tap-highlight-color: transparent;
+          touch-action: none;
+          -webkit-user-select: none;
+          user-select: none;
+        "
+      >
+        <!-- glow -->
+        <div
+          class="absolute inset-0 bg-white/5 blur-3xl rounded-full transform -translate-y-4"
+        ></div>
+
+        <!-- joystick base -->
+        <div
+          class="w-full h-full rounded-full border border-white/20 bg-white/5 backdrop-blur-md shadow-2xl relative"
+        >
+          <!-- inner stick -->
+          <div
+            class="absolute top-1/2 left-1/2 w-14 h-14 -ml-7 -mt-7 rounded-full bg-white shadow-[0_4px_15px_rgba(0,0,0,0.3)] transition-transform duration-75 will-change-transform"
+            :style="{
+              transform: `translate(${joystickState.x}px, ${joystickState.y}px)`,
+            }"
+          >
+            <!-- stick highlight -->
+            <div
+              class="absolute top-0 left-0 w-full h-full rounded-full bg-gradient-to-br from-white to-gray-300"
+            ></div>
+          </div>
+        </div>
+      </div>
+    </template>
 
     <!-- menu button -->
     <button
@@ -280,7 +321,15 @@ import { storeToRefs } from "pinia";
 
 // # store access
 const libraryStore = useLibraryStore();
-const { swapButtons } = storeToRefs(libraryStore);
+const { swapButtons, useJoystick } = storeToRefs(libraryStore);
+
+// # joystick state
+const joystickState = reactive({
+  active: false,
+  x: 0,
+  y: 0,
+});
+const joystickBaseRef = ref(null);
 
 // # active keys tracking
 const activeKeys = reactive(new Set());
@@ -405,6 +454,13 @@ const handleTouch = (e) => {
         dpadState.lastTouchY = t.clientY;
         dpadState.lastInputTime = now;
 
+        // JOYSTICK MODE
+        if (useJoystick.value) {
+          processJoystickCoordinates(t.clientX, t.clientY);
+          return;
+        }
+
+        // DPAD MODE
         // hybrid logic: absolute vs relative start
         const distFromVisualSq = getDistSq(
           t.clientX,
@@ -413,13 +469,10 @@ const handleTouch = (e) => {
           dpadState.visualY
         );
 
-        // 20px radius = 400sq
         if (distFromVisualSq > 400) {
-          // far tap -> anchor to visual center
           dpadState.x = dpadState.visualX;
           dpadState.y = dpadState.visualY;
         } else {
-          // near tap -> anchor to touch
           dpadState.x = t.clientX;
           dpadState.y = t.clientY;
         }
@@ -438,7 +491,11 @@ const handleTouch = (e) => {
         dpadState.lastTouchY = t.clientY;
         dpadState.lastInputTime = now;
 
-        processDpadCoordinates(t.clientX, t.clientY);
+        if (useJoystick.value) {
+          processJoystickCoordinates(t.clientX, t.clientY);
+        } else {
+          processDpadCoordinates(t.clientX, t.clientY);
+        }
         return;
       }
     }
@@ -462,6 +519,11 @@ const clearDpadState = () => {
   dpadTouchId = null;
   isMouseDown = false;
   currentDirection = null;
+
+  // reset joystick visual
+  joystickState.x = 0;
+  joystickState.y = 0;
+  joystickState.active = false;
 
   for (const k of DPAD_CODES) {
     if (activeKeys.has(k)) {
@@ -528,6 +590,54 @@ const getDistSq = (x1, y1, x2, y2) => {
   const dx = x1 - x2;
   const dy = (y1 - y2) * 1.1;
   return dx * dx + dy * dy;
+};
+
+const processJoystickCoordinates = (clientX, clientY) => {
+  // center of joystick
+  const rect = dpadState.rect;
+  if (!rect) return;
+
+  const dx = clientX - dpadState.visualX;
+  const dy = clientY - dpadState.visualY;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const maxRadius = 40;
+
+  // calc clamped position for visual stick
+  let clampX = dx;
+  let clampY = dy;
+
+  if (dist > maxRadius) {
+    const ratio = maxRadius / dist;
+    clampX = dx * ratio;
+    clampY = dy * ratio;
+  }
+
+  // update visual state (reactive)
+  joystickState.x = clampX;
+  joystickState.y = clampY;
+  joystickState.active = true;
+
+  // logic: angle & deadzone
+  if (dist < 10) {
+    // deadzone
+    if (currentDirection) {
+      currentDirection = null;
+      triggerKeys([]);
+    }
+    return;
+  }
+
+  let angle = Math.atan2(dy, dx) * RAD_TO_DEG;
+  if (angle < 0) angle += 360;
+
+  // snap to cardinal 8-way
+  const newDirection = getDirectionFromAngle(angle, currentDirection);
+
+  if (newDirection !== currentDirection) {
+    currentDirection = newDirection;
+    Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+    triggerKeys(getKeysForDirection(newDirection));
+  }
 };
 
 const processDpadCoordinates = (clientX, clientY) => {

@@ -375,6 +375,25 @@
                 ></div>
               </div>
             </div>
+
+            <!-- joystick toggle -->
+            <div
+              @click="toggleJoystick"
+              class="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5 active:bg-white/10 transition-colors cursor-pointer mt-3"
+            >
+              <span class="text-white font-medium"
+                >Enable Virtual Joystick</span
+              >
+              <div
+                class="w-12 h-7 rounded-full transition-colors relative"
+                :class="useJoystick ? 'bg-purple-500' : 'bg-white/10'"
+              >
+                <div
+                  class="absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform shadow-sm"
+                  :class="useJoystick ? 'translate-x-5' : 'translate-x-0'"
+                ></div>
+              </div>
+            </div>
           </div>
 
           <!-- manage saves -->
@@ -542,11 +561,18 @@ import { libraryManager } from "../services/LibraryManager"; // # added import
 const router = useRouter();
 const libraryStore = useLibraryStore();
 // # fix: initialize games as safe computed/ref to prevent crash if store is empty
-const { loading, searchQuery, sortBy, swapButtons } = storeToRefs(libraryStore);
+libraryStore;
+const { loading, searchQuery, sortBy, swapButtons, useJoystick } =
+  storeToRefs(libraryStore);
 const games = computed(() => libraryStore.games || []);
 
-const { loadLibrary, addCartridge, removeCartridge, toggleSwapButtons } =
-  libraryStore;
+const {
+  loadLibrary,
+  addCartridge,
+  removeCartridge,
+  toggleSwapButtons,
+  toggleJoystick,
+} = libraryStore;
 
 const fileInput = ref(null);
 const showSettings = ref(false);

@@ -12,10 +12,16 @@ export const useLibraryStore = defineStore("library", () => {
   const searchQuery = ref("");
   const sortBy = ref("lastPlayed"); // 'lastPlayed', 'name', 'newest'
   const swapButtons = ref(localStorage.getItem("pico_swap_buttons") === "true");
+  const useJoystick = ref(localStorage.getItem("pico_use_joystick") === "true");
 
   function toggleSwapButtons() {
     swapButtons.value = !swapButtons.value;
     localStorage.setItem("pico_swap_buttons", swapButtons.value);
+  }
+
+  function toggleJoystick() {
+    useJoystick.value = !useJoystick.value;
+    localStorage.setItem("pico_use_joystick", useJoystick.value);
   }
 
   const filteredGames = computed(() => {
@@ -91,7 +97,9 @@ export const useLibraryStore = defineStore("library", () => {
     searchQuery,
     sortBy,
     swapButtons,
+    useJoystick,
     toggleSwapButtons,
+    toggleJoystick,
     loadLibrary,
     addCartridge,
     removeCartridge,
