@@ -2,8 +2,7 @@
   <div
     class="antialiased min-h-screen bg-gradient-to-b from-gray-900 to-black text-white selection:bg-purple-500 selection:text-white"
   >
-    <!-- # global background effects -->
-    <!-- # global background effects -->
+    <!-- global background effects -->
     <div v-if="isCheckingEngine" class="fixed inset-0 bg-black z-50"></div>
 
     <BiosImporter v-else-if="!isEngineReady" />
@@ -18,31 +17,18 @@
     <Transition name="slide-down">
       <div
         v-if="toast.isVisible.value"
-        class="fixed top-20 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 px-4 py-3 rounded-full shadow-2xl backdrop-blur-md border border-white/10 transition-all duration-300 !pointer-events-none"
-        :class="
-          toast.type.value === 'error' ? 'bg-red-500/90' : 'bg-neutral-900/90'
-        "
+        class="fixed top-20 left-1/2 -translate-x-1/2 z-[100] px-4 py-3 rounded-full shadow-2xl backdrop-blur-md bg-neutral-900/90 border border-white/10 !pointer-events-none"
       >
-        <!-- icon based on type -->
-        <span v-if="toast.type.value === 'success'" class="text-green-400"
-          >✓</span
-        >
-        <span v-else-if="toast.type.value === 'error'" class="text-white"
-          >✕</span
-        >
-        <span v-else class="text-blue-400">ℹ</span>
-
-        <span
-          class="text-white font-medium text-sm tracking-wide !pointer-events-auto"
-          >{{ toast.message.value }}</span
-        >
+        <span class="text-white font-medium text-sm tracking-wide">{{
+          toast.message.value
+        }}</span>
       </div>
     </Transition>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue"; // Explicit import added
+import { ref, onMounted } from "vue";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { App } from "@capacitor/app";
 import { Dialog } from "@capacitor/dialog";
@@ -56,11 +42,10 @@ const toast = useToast();
 const router = useRouter();
 const isEngineReady = ref(false);
 const isCheckingEngine = ref(true);
-const showImporter = ref(false); // New ref for showing BiosImporter
+const showImporter = ref(false);
 
 onMounted(async () => {
-  // # 1. Prepare Engine (Check Only)
-  // We strictly check if the bios exists. We DO NOT inject here.
+  // prep engine
   const hasEngine = await EngineLoader.init();
 
   if (!hasEngine) {
@@ -70,30 +55,27 @@ onMounted(async () => {
     console.log(
       "[App.vue] Engine ready (cached). Waiting for Player to inject."
     );
-    // If engine is ready, we can proceed to the main app, but not necessarily inject yet.
-    // The main app (RouterView) will handle injection when a game is selected.
-    isEngineReady.value = true; // Indicate that the engine is available for use
+    isEngineReady.value = true;
   }
 
   isCheckingEngine.value = false;
 
-  // # helper: process deep link url
+  // helper: process deep link url
   const processDeepLink = async (urlString) => {
     console.log("[App] Processing deep link:", urlString);
     try {
       const url = new URL(urlString);
-      // Handle: pocket8://play?id=...
+      // handle: pocket8://play?id=...
       if (url.protocol.includes("pocket8") && url.host === "play") {
         const cartId = url.searchParams.get("id");
         if (cartId) {
           try {
             toast.showToast("Loading Cartridge...", "info");
 
-            // CRITICAL: ensure libraryManager is initialized before calling handleDeepLink
-            // This creates the Carts/Images/Saves directories if they don't exist
+            // create the Carts/Images/Saves directories if they don't exist
             await libraryManager.init();
 
-            // use new centralized handler
+            // use centralized handler
             const result = await libraryManager.handleDeepLink(cartId);
 
             if (result.exists) {
@@ -118,7 +100,7 @@ onMounted(async () => {
     }
   };
 
-  // # deep link listener (hot start)
+  // deep link listener
   try {
     App.addListener("appUrlOpen", async (event) => {
       console.log("[App] appUrlOpen event received:", event.url);
@@ -128,7 +110,7 @@ onMounted(async () => {
     console.warn("[App] Deep links not supported in this environment:", e);
   }
 
-  // # check launch url (cold start)
+  // check launch url (cold start)
   try {
     const launchUrl = await App.getLaunchUrl();
     console.log("[App] getLaunchUrl result:", launchUrl);
@@ -140,16 +122,28 @@ onMounted(async () => {
     console.error("[App] getLaunchUrl failed:", e);
   }
 
-  // # test helper
+  // test helper
   window.testDeepLink = (id) => {
     console.log(`[debug] simulating deep link for id: ${id}`);
     const mockUrl = `pocket8://play?id=${id}`;
     processDeepLink(mockUrl);
   };
 
-  // # Global fallback for Native iOS injection
-  // Swift's SceneDelegate calls this via evaluateJavaScript("window.handleOpenUrl(...)")
+  let lastProcessedUrl = "";
+  let lastProcessedTime = 0;
+
   window.handleOpenUrl = (url) => {
+    const now = Date.now();
+
+    // debounce
+    if (url === lastProcessedUrl && now - lastProcessedTime < 3000) {
+      console.log("[App] Ignoring duplicate pulse:", url);
+      return;
+    }
+
+    lastProcessedUrl = url;
+    lastProcessedTime = now;
+
     console.log("[App] Native Force-Feed received:", url);
     processDeepLink(url);
   };

@@ -47,9 +47,18 @@
             BlueprintIdentifier = "504EC3031FED79650016851F"
             BuildableName = "Pocket8.app"
             BlueprintName = "Pocket8"
-            ReferencedContainer = "container:Pocket8.xcodeproj">
+            ReferencedContainer = "container:App.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <MacroExpansion>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "504EC3031FED79650016851F"
+            BuildableName = "Pocket8.app"
+            BlueprintName = "Pocket8"
+            ReferencedContainer = "container:Pocket8.xcodeproj">
+         </BuildableReference>
+      </MacroExpansion>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
@@ -67,6 +76,15 @@
             ReferencedContainer = "container:Pocket8.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <MacroExpansion>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "504EC3031FED79650016851F"
+            BuildableName = "Pocket8.app"
+            BlueprintName = "Pocket8"
+            ReferencedContainer = "container:Pocket8.xcodeproj">
+         </BuildableReference>
+      </MacroExpansion>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">
