@@ -97,7 +97,8 @@
 <script setup>
 import { ref, watch, onMounted } from "vue";
 import { Filesystem, Directory } from "@capacitor/filesystem";
-import { Haptics, ImpactStyle } from "@capacitor/haptics";
+import { haptics } from "../utils/haptics";
+import { ImpactStyle } from "@capacitor/haptics";
 
 const props = defineProps(["isOpen", "cartName"]);
 const emit = defineEmits(["close", "load"]);
@@ -106,7 +107,7 @@ const loading = ref(false);
 
 const closeDrawer = () => {
   emit("close");
-  Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+  haptics.impact(ImpactStyle.Light).catch(() => {});
 };
 
 const refreshSaves = async () => {
@@ -155,7 +156,7 @@ onMounted(() => {
 });
 
 const loadSave = (filename) => {
-  Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
+  haptics.impact(ImpactStyle.Medium).catch(() => {});
   console.log("⚡️ [Drawer] Selected:", filename);
   emit("load", filename);
   emit("close");
@@ -166,7 +167,16 @@ const formatSize = (bytes) => {
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 };
-const formatDate = (ms) => new Date(ms).toLocaleString();
+const formatDate = (ms) =>
+  new Date(ms).toLocaleString("en-US", {
+    month: "numeric",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hour12: true,
+  });
 </script>
 
 <style scoped>

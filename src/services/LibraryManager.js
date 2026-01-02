@@ -26,15 +26,20 @@ export class LibraryManager {
       } else {
         // platform defaults
         if (Capacitor.getPlatform() === "android") {
-          this.rootDir = "Pocket8";
+          this.rootDir = null;
         } else {
           this.rootDir = "";
         }
-        localStorage.setItem("pico_root_dir", this.rootDir);
+        if (this.rootDir !== null) {
+          localStorage.setItem("pico_root_dir", this.rootDir);
+        }
       }
 
       // ensure directories exist
       const ensureDir = async (path) => {
+        // block specific dirs if rootDir is unset
+        if (this.rootDir === null) return;
+
         const fullPath = this.rootDir ? `${this.rootDir}/${path}` : path;
         try {
           // check existence first
@@ -57,7 +62,7 @@ export class LibraryManager {
       };
 
       // ensure root itself
-      if (this.rootDir) {
+      if (this.rootDir !== null && this.rootDir !== "") {
         await ensureDir("");
       }
 
@@ -90,6 +95,7 @@ export class LibraryManager {
 
   // helper to join root with path
   resolvePath(path) {
+    if (this.rootDir === null) return null;
     if (!path) return this.rootDir || "";
     return this.rootDir ? `${this.rootDir}/${path}` : path;
   }

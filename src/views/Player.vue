@@ -104,15 +104,7 @@
       :isOpen="isSavesDrawerOpen"
       :cartName="activeCartName"
       @close="isSavesDrawerOpen = false"
-      @load="
-        (filename) => {
-          if (filename) {
-            picoBridge.loadRAMState('Saves/' + filename);
-            showToast('STATE LOADED');
-          }
-          isMenuOpen = false;
-        }
-      "
+      @load="handleStateLoad"
     />
   </div>
 </template>
@@ -148,6 +140,8 @@ import { useToast } from "../composables/useToast";
 import { useLibraryStore } from "../stores/library";
 
 import { Fullscreen } from "@boengli/capacitor-fullscreen";
+
+const { showToast } = useToast();
 
 const activeCartName = ref(
   props.cartId === "boot" ? "boot" : props.cartId.replace(".p8.png", "")
@@ -389,7 +383,7 @@ const isMuted = ref(false);
 const menuButtons = computed(() => [
   { label: "resume", action: "resume" },
   { label: "save state", action: "manualsave" },
-  { label: "manage saves", action: "managesaves" },
+  { label: "load state", action: "managesaves" },
   { label: "reset", action: "reset" },
   { label: "exit", action: "exit" },
 ]);
@@ -450,40 +444,38 @@ const triggerAutoSave = async (silent = false) => {
   }
 };
 
-const triggerManualSave = async () => {
-  if (!window.FS) {
-    showToast("Waiting for filesystem...");
-    return;
+const handleStateLoad = async (filename) => {
+  if (filename) {
+    console.log("[player] loading state:", filename);
+    await picoBridge.loadRAMState("Saves/" + filename);
+    showToast("State Loaded");
+    isMenuOpen.value = false;
+    isSavesDrawerOpen.value = false;
+    picoBridge.resume();
   }
-  showToast("Saving State...");
+};
+
+const triggerManualSave = async () => {
+  // close menu immediately for better ux
+  isMenuOpen.value = false;
+  picoBridge.resume();
 
   try {
-    // scan existing saves to find next index
-    const result = await Filesystem.readdir({
-      path: "Saves",
-      directory: Directory.Documents,
-    });
+    const base = activeCartName.value;
+    const key = `pico_save_idx_${base}`;
+
+    // index from localStorage to avoid readdir
+    let nextIndex = parseInt(localStorage.getItem(key) || "0") + 1;
+
+    // save new index
+    localStorage.setItem(key, nextIndex.toString());
 
     // pattern: cartname_manual_N.state
-    const base = activeCartName.value + "_manual_";
-    let maxIndex = 0;
+    const saveName = `Saves/${base}_manual_${nextIndex}.state`;
 
-    result.files.forEach((f) => {
-      if (f.name.startsWith(base) && f.name.endsWith(".state")) {
-        const part = f.name.replace(base, "").replace(".state", "");
-        const num = parseInt(part);
-        if (!isNaN(num) && num > maxIndex) {
-          maxIndex = num;
-        }
-      }
-    });
+    showToast("Saving...");
 
-    const nextIndex = maxIndex + 1;
-    const saveName = `Saves/${base}${nextIndex}.state`;
-
-    const start = performance.now();
     const success = await window.picoBridge.captureFullRAMState(saveName);
-    const duration = Math.round(performance.now() - start);
 
     if (success) {
       showToast(`Saved Slot #${nextIndex}`);
@@ -491,11 +483,8 @@ const triggerManualSave = async () => {
       showToast("Save Failed");
     }
   } catch (e) {
-    console.error("Manual save scan failed", e);
-    // fallback
-    const fallbackName = `Saves/${activeCartName.value}_manual_fallback.state`;
-    await window.picoBridge.captureFullRAMState(fallbackName);
-    showToast("Saved (Fallback)");
+    console.error("Manual save failed", e);
+    showToast("Save Error");
   }
 };
 

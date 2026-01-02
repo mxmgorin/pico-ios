@@ -215,10 +215,41 @@
               d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"
             />
           </svg>
-          <p class="text-white/60 font-medium">No cartridges found</p>
-          <p class="text-white/30 text-sm mt-1">
-            Import a .p8.png cartridge to get started
-          </p>
+
+          <!-- android setup -->
+          <div
+            v-if="needsDirectorySetup"
+            class="flex flex-col items-center gap-4"
+          >
+            <p class="text-white/60 font-medium">Library Setup</p>
+            <p class="text-white/30 text-sm max-w-xs leading-relaxed">
+              Select a folder to store your cartridges.
+            </p>
+            <button
+              @click="pickAndroidDirectory"
+              class="mt-2 px-6 py-3 bg-white/10 rounded-full font-bold text-sm tracking-wide active:bg-white/20 transition-all flex items-center gap-2"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
+                />
+              </svg>
+              Select Directory
+            </button>
+          </div>
+
+          <!-- empty state -->
+          <div v-else>
+            <p class="text-white/60 font-medium">No cartridges found</p>
+            <p class="text-white/30 text-sm mt-1">
+              Import a .p8.png cartridge to get started
+            </p>
+          </div>
         </div>
       </transition>
 
@@ -585,21 +616,48 @@ import { storeToRefs } from "pinia";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
 import { haptics } from "../utils/haptics";
-import { ImpactStyle } from "@capacitor/haptics"; // Keep ImpactStyle if needed for pattern constants, or just use strings if possible.
-// Actually haptics util uses ImpactStyle.Light default.
-// Let's check usages.
-// Library uses ImpactStyle.Medium and Light.
-// The util supports passing style. So we need ImpactStyle or just pass strings if I changed util to accept strings?
-// The util takes `style`.
-// I will keep ImpactStyle import but remove Haptics import.
+import { ImpactStyle } from "@capacitor/haptics";
 import { libraryManager } from "../services/LibraryManager";
+import { FilePicker } from "@capawesome/capacitor-file-picker";
+import { Capacitor } from "@capacitor/core";
 
 const router = useRouter();
 const libraryStore = useLibraryStore();
 // fix: initialize games as safe computed/ref to prevent crash if store is empty
-const { loading, searchQuery, sortBy, swapButtons, useJoystick, rootDir } =
-  storeToRefs(libraryStore);
-const games = computed(() => libraryStore.games || []);
+const {
+  games,
+  loading,
+  searchQuery,
+  sortBy,
+  swapButtons,
+  hapticsEnabled,
+  rootDir,
+} = storeToRefs(libraryStore);
+
+const isAndroid = computed(() => Capacitor.getPlatform() === "android");
+const needsDirectorySetup = computed(
+  () => isAndroid.value && (!rootDir.value || rootDir.value === "")
+);
+
+async function pickAndroidDirectory() {
+  haptics.impact(ImpactStyle.Light).catch(() => {});
+  try {
+    const result = await FilePicker.pickDirectory();
+    if (result.files && result.files.length > 0) {
+      const picked = result.files[0];
+      const newPath = picked.name || "Pocket8";
+
+      if (confirm(`Set library directory to '${newPath}'?`)) {
+        await libraryStore.updateRootDirectory(newPath);
+        haptics.success().catch(() => {});
+      }
+    }
+  } catch (e) {
+    if (e.message !== "User cancelled") {
+      alert("Failed to pick directory: " + e.message);
+    }
+  }
+}
 
 const {
   loadLibrary,

@@ -94,30 +94,37 @@
           Library
         </h2>
         <div class="space-y-3">
-          <!-- library folder -->
-          <div class="bg-white/5 rounded-xl border border-white/5 p-4">
-            <div class="mb-3">
-              <span class="text-white font-medium block">Library Folder</span>
-              <p class="text-xs text-white/40 mt-1">
-                Folder name within Documents. Leave empty for root.
+          <!-- library folder (android only) -->
+          <div
+            v-if="isAndroid"
+            @click="pickAndroidDirectory"
+            class="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5 active:bg-white/10 transition-colors cursor-pointer group"
+          >
+            <div>
+              <span class="text-white font-medium block"
+                >Library Directory</span
+              >
+              <p class="text-xs text-white/40 mt-1" v-if="currentRootDir">
+                Current: {{ currentRootDir }}
+              </p>
+              <p class="text-xs text-white/40 mt-1" v-else>
+                No directory selected
               </p>
             </div>
-            <div class="flex gap-2">
-              <input
-                v-model="tempRootDir"
-                type="text"
-                placeholder="e.g. Pocket8"
-                class="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 transition-all font-mono"
-                @keyup.enter="saveRootDir"
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-5 w-5 text-white/30 group-hover:translate-x-1 transition-transform"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 5l7 7-7 7"
               />
-              <button
-                @click="saveRootDir"
-                :disabled="tempRootDir === currentRootDir"
-                class="px-4 py-2 bg-white/10 rounded-lg text-white/80 text-sm font-medium hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              >
-                Set
-              </button>
-            </div>
+            </svg>
           </div>
 
           <!-- manage saves link -->
@@ -178,6 +185,8 @@ import { useLibraryStore } from "../stores/library";
 import { storeToRefs } from "pinia";
 import { haptics } from "../utils/haptics";
 import { ImpactStyle } from "@capacitor/haptics";
+import { FilePicker } from "@capawesome/capacitor-file-picker";
+import { Capacitor } from "@capacitor/core";
 
 const libraryStore = useLibraryStore();
 const { swapButtons, useJoystick, hapticsEnabled, rootDir } =
@@ -192,6 +201,8 @@ const {
 const tempRootDir = ref("");
 const currentRootDir = computed(() => rootDir.value || "");
 
+const isAndroid = computed(() => Capacitor.getPlatform() === "android");
+
 // init temp state
 onMounted(() => {
   tempRootDir.value = currentRootDir.value;
@@ -201,15 +212,23 @@ watch(rootDir, (val) => {
   tempRootDir.value = val || "";
 });
 
-async function saveRootDir() {
-  if (tempRootDir.value === currentRootDir.value) return;
-  haptics.impact(ImpactStyle.Medium).catch(() => {});
+async function pickAndroidDirectory() {
+  haptics.impact(ImpactStyle.Light).catch(() => {});
+  try {
+    const result = await FilePicker.pickDirectory();
+    if (result.files && result.files.length > 0) {
+      const picked = result.files[0];
+      const newPath = picked.name || "Pocket8";
 
-  const success = await updateRootDirectory(tempRootDir.value);
-  if (success) {
-    haptics.success().catch(() => {});
-  } else {
-    alert("Failed to update directory setting.");
+      if (confirm(`Set library directory to '${newPath}'?`)) {
+        await updateRootDirectory(newPath);
+        haptics.success().catch(() => {});
+      }
+    }
+  } catch (e) {
+    if (e.message !== "User cancelled") {
+      alert("Failed to pick directory: " + e.message);
+    }
   }
 }
 </script>

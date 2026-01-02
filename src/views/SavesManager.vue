@@ -52,7 +52,7 @@
         <p>No save files found</p>
       </div>
 
-      <div v-else class="space-y-6 pb-20">
+      <div v-else class="space-y-6 pb-20 overflow-y-auto h-[calc(100vh-10rem)]">
         <div
           v-for="group in groupedSaves"
           :key="group.title"
