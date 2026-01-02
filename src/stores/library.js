@@ -13,6 +13,8 @@ export const useLibraryStore = defineStore("library", () => {
   const sortBy = ref("lastPlayed"); // 'lastPlayed', 'name', 'newest'
   const swapButtons = ref(localStorage.getItem("pico_swap_buttons") === "true");
   const useJoystick = ref(localStorage.getItem("pico_use_joystick") === "true");
+  // root dir state (populated after loadLibrary)
+  const rootDir = ref("");
 
   function toggleSwapButtons() {
     swapButtons.value = !swapButtons.value;
@@ -60,6 +62,7 @@ export const useLibraryStore = defineStore("library", () => {
     error.value = null;
     try {
       await libraryManager.init();
+      rootDir.value = libraryManager.rootDir; // sync state
       rawGames.value = await libraryManager.scan();
       return rawGames.value;
     } catch (e) {
@@ -148,6 +151,23 @@ export const useLibraryStore = defineStore("library", () => {
     return success;
   }
 
+  async function updateRootDirectory(newPath) {
+    loading.value = true;
+    try {
+      const success = await libraryManager.setRootDirectory(newPath);
+      if (success) {
+        rootDir.value = libraryManager.rootDir;
+        rawGames.value = await libraryManager.scan();
+      }
+      return success;
+    } catch (e) {
+      error.value = e.message;
+      return false;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   return {
     games: filteredGames,
     rawGames,
@@ -157,8 +177,10 @@ export const useLibraryStore = defineStore("library", () => {
     sortBy,
     swapButtons,
     useJoystick,
+    rootDir,
     toggleSwapButtons,
     toggleJoystick,
+    updateRootDirectory,
     loadLibrary,
     loadLibrary,
     addCartridge,

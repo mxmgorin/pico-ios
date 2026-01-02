@@ -80,6 +80,7 @@
 <script setup>
 import { ref } from "vue";
 import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
+import { libraryManager } from "../services/LibraryManager";
 import { haptics } from "../utils/haptics";
 
 const fileInput = ref(null);
@@ -126,9 +127,12 @@ const processFile = async (file) => {
     statusMessage.value = "Saving engine to sandbox...";
 
     // ensure data directory exists
+    // rely on library manager helper or do it manually using resolved path
+    const dataPath = libraryManager.resolvePath("Data");
+
     try {
       await Filesystem.mkdir({
-        path: "data",
+        path: dataPath,
         directory: Directory.Documents,
         recursive: true,
       });
@@ -136,7 +140,7 @@ const processFile = async (file) => {
 
     // save
     await Filesystem.writeFile({
-      path: "data/bios.js",
+      path: libraryManager.resolvePath("Data/bios.js"),
       data: text,
       directory: Directory.Documents,
       encoding: Encoding.UTF8,

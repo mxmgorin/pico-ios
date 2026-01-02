@@ -651,6 +651,36 @@
             </div>
           </div>
 
+          <!-- library folder -->
+          <div class="mb-8">
+            <h3
+              class="text-sm font-medium text-white/50 uppercase tracking-wider mb-4"
+            >
+              Library Folder
+            </h3>
+            <div class="bg-white/5 rounded-xl border border-white/5 p-4">
+              <p class="text-xs text-white/40 mb-3">
+                Folder name within Documents. Leave empty for root.
+              </p>
+              <div class="flex gap-2">
+                <input
+                  v-model="tempRootDir"
+                  type="text"
+                  placeholder="e.g. Pocket8"
+                  class="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 transition-all font-mono"
+                  @keyup.enter="saveRootDir"
+                />
+                <button
+                  @click="saveRootDir"
+                  :disabled="tempRootDir === currentRootDir"
+                  class="px-4 py-2 bg-white/10 rounded-lg text-white/80 text-sm font-medium hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  Set
+                </button>
+              </div>
+            </div>
+          </div>
+
           <!-- manage saves -->
           <div class="mb-8 flex-1">
             <h3
@@ -816,7 +846,7 @@ import { libraryManager } from "../services/LibraryManager";
 const router = useRouter();
 const libraryStore = useLibraryStore();
 // fix: initialize games as safe computed/ref to prevent crash if store is empty
-const { loading, searchQuery, sortBy, swapButtons, useJoystick } =
+const { loading, searchQuery, sortBy, swapButtons, useJoystick, rootDir } =
   storeToRefs(libraryStore);
 const games = computed(() => libraryStore.games || []);
 
@@ -829,6 +859,7 @@ const {
   renameCartridge,
   toggleSwapButtons,
   toggleJoystick,
+  updateRootDirectory,
 } = libraryStore;
 
 // split lists
@@ -839,6 +870,30 @@ const hasFavorites = computed(() => favorites.value.length > 0);
 
 const fileInput = ref(null);
 const showSettings = ref(false);
+
+const tempRootDir = ref("");
+const currentRootDir = computed(() => rootDir.value || "");
+
+// sync temp with actual when opening settings or when it changes
+import { watch } from "vue";
+watch(showSettings, (val) => {
+  if (val) tempRootDir.value = currentRootDir.value;
+});
+watch(rootDir, (val) => {
+  if (showSettings.value) tempRootDir.value = val || "";
+});
+
+async function saveRootDir() {
+  if (tempRootDir.value === currentRootDir.value) return;
+  Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
+
+  const success = await updateRootDirectory(tempRootDir.value);
+  if (success) {
+    Haptics.notification({ type: "success" }).catch(() => {});
+  } else {
+    alert("Failed to update directory setting.");
+  }
+}
 
 // rename modal state
 const showRenameModal = ref(false);
@@ -1071,7 +1126,7 @@ async function openSettings() {
 
   try {
     const result = await Filesystem.readdir({
-      path: "Saves",
+      path: libraryManager.resolvePath("Saves"),
       directory: Directory.Documents,
     });
 
@@ -1125,12 +1180,11 @@ async function loadState(save) {
 
   // attempt to prepare handoff
   try {
-    const fileData = await Filesystem.readFile({
-      path: `Carts/${targetCart}`,
-      directory: Directory.Documents,
-    });
+    const data = await libraryManager.loadCartData(targetCart);
+    if (!data) throw new Error("Cart data not found");
+
     // stash
-    localStorage.setItem("pico_handoff_payload", fileData.data);
+    localStorage.setItem("pico_handoff_payload", data);
     localStorage.setItem("pico_handoff_name", targetCart);
   } catch (e) {
     console.warn(
@@ -1169,7 +1223,7 @@ async function deleteState(save) {
 
   try {
     await Filesystem.deleteFile({
-      path: `Saves/${save.name}`,
+      path: libraryManager.resolvePath(`Saves/${save.name}`),
       directory: Directory.Documents,
     });
 
@@ -1200,21 +1254,14 @@ async function openGame(game) {
 
   // memory stream handoff
   try {
-    const fileData = await Filesystem.readFile({
-      path: `Carts/${game.filename}`, // standardized path using filename not display name
-      directory: Directory.Documents,
-    });
+    const data = await libraryManager.loadCartData(game.filename);
 
     // stash
-    if (fileData.data) {
-      localStorage.setItem("pico_handoff_payload", fileData.data);
+    if (data) {
+      localStorage.setItem("pico_handoff_payload", data);
       localStorage.setItem("pico_handoff_name", game.filename);
       console.log(
-        `[library] stashed ${
-          game.filename
-        } for handoff. payload type: ${typeof fileData.data}, length: ${
-          fileData.data.length
-        }`
+        `[library] stashed ${game.filename} for handoff. payload length: ${data.length}`
       );
     } else {
       console.error(

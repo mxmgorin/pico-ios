@@ -12,25 +12,41 @@ export class LibraryManager {
     this.games = [];
     this.metadata = {};
     this.initialized = false;
+    this.rootDir = "";
   }
 
   async init() {
     if (this.initialized) return;
 
     try {
-      // ensure pocket8 directories exist
+      // initialize root dir preference
+      const savedRoot = localStorage.getItem("pico_root_dir");
+      if (savedRoot !== null) {
+        this.rootDir = savedRoot;
+      } else {
+        // platform defaults
+        if (Capacitor.getPlatform() === "android") {
+          this.rootDir = "Pocket8";
+        } else {
+          this.rootDir = "";
+        }
+        localStorage.setItem("pico_root_dir", this.rootDir);
+      }
+
+      // ensure directories exist
       const ensureDir = async (path) => {
+        const fullPath = this.rootDir ? `${this.rootDir}/${path}` : path;
         try {
           // check existence first
           await Filesystem.stat({
-            path,
+            path: fullPath,
             directory: Directory.Documents,
           });
         } catch (e) {
           // # try to create if missing
           try {
             await Filesystem.mkdir({
-              path,
+              path: fullPath,
               directory: Directory.Documents,
               recursive: true,
             });
@@ -40,14 +56,21 @@ export class LibraryManager {
         }
       };
 
+      // ensure root itself
+      if (this.rootDir) {
+        await ensureDir("");
+      }
+
       await ensureDir(CARTS_DIR);
       await ensureDir(IMAGES_DIR);
       await ensureDir(SAVES_DIR);
+      await ensureDir("Data");
 
       // load metadata
       try {
+        const libraryPath = this.resolvePath(LIBRARY_FILE);
         const result = await Filesystem.readFile({
-          path: LIBRARY_FILE,
+          path: libraryPath,
           directory: Directory.Documents,
           encoding: Encoding.UTF8,
         });
@@ -61,7 +84,27 @@ export class LibraryManager {
       this.initialized = true;
     } catch (e) {
       // silent failure
+      console.error("Library init failed", e);
     }
+  }
+
+  // helper to join root with path
+  resolvePath(path) {
+    if (!path) return this.rootDir || "";
+    return this.rootDir ? `${this.rootDir}/${path}` : path;
+  }
+
+  async setRootDirectory(newPath) {
+    // strict sanitization
+    newPath = newPath.replace(/[^\w\s\-\.]/gi, "").trim();
+
+    this.rootDir = newPath;
+    localStorage.setItem("pico_root_dir", this.rootDir);
+
+    // re-init / re-scan
+    this.initialized = false;
+    await this.init();
+    return true;
   }
 
   async cleanupLegacy() {
@@ -70,7 +113,7 @@ export class LibraryManager {
 
   async scan() {
     const games = [];
-    const scanPath = CARTS_DIR;
+    const scanPath = this.resolvePath(CARTS_DIR);
 
     try {
       const result = await Filesystem.readdir({
@@ -96,7 +139,7 @@ export class LibraryManager {
           const id = file.name;
           const meta = this.metadata[id] || { playCount: 0, lastPlayed: 0 };
           const baseName = file.name.replace(/\.p8(\.png)?$/, "");
-          const imagePath = `${IMAGES_DIR}/${baseName}.png`;
+          const imagePath = this.resolvePath(`${IMAGES_DIR}/${baseName}.png`);
           let coverUri = null;
 
           // handle image loading (web vs native)
@@ -380,7 +423,7 @@ export class LibraryManager {
 
       // write all files to carts
       await Filesystem.writeFile({
-        path: `${CARTS_DIR}/${file.name}`, // use updated file.name
+        path: this.resolvePath(`${CARTS_DIR}/${file.name}`), // use updated file.name
         data: file.data,
         directory: Directory.Documents,
       });
@@ -443,7 +486,7 @@ export class LibraryManager {
       .replace(/\.png$/, "");
     try {
       await Filesystem.writeFile({
-        path: `${IMAGES_DIR}/${baseName}.png`,
+        path: this.resolvePath(`${IMAGES_DIR}/${baseName}.png`),
         data: base64Data,
         directory: Directory.Documents,
       });
@@ -453,7 +496,7 @@ export class LibraryManager {
   async loadCartData(relativePath) {
     try {
       const res = await Filesystem.readFile({
-        path: `${CARTS_DIR}/${relativePath}`,
+        path: this.resolvePath(`${CARTS_DIR}/${relativePath}`),
         directory: Directory.Documents,
       });
       return res.data; // base64
@@ -516,7 +559,7 @@ export class LibraryManager {
           // delete sub-cart file
           try {
             await Filesystem.deleteFile({
-              path: `${CARTS_DIR}/${sub}`,
+              path: this.resolvePath(`${CARTS_DIR}/${sub}`),
               directory: Directory.Documents,
             });
           } catch (e) {
@@ -530,7 +573,7 @@ export class LibraryManager {
 
       // delete main cartridge
       await Filesystem.deleteFile({
-        path: `${CARTS_DIR}/${filename}`,
+        path: this.resolvePath(`${CARTS_DIR}/${filename}`),
         directory: Directory.Documents,
       });
 
@@ -538,7 +581,7 @@ export class LibraryManager {
       const baseName = filename.replace(/\.p8(\.png)?$/, "");
       try {
         await Filesystem.deleteFile({
-          path: `${IMAGES_DIR}/${baseName}.png`,
+          path: this.resolvePath(`${IMAGES_DIR}/${baseName}.png`),
           directory: Directory.Documents,
         });
       } catch (e) {
@@ -562,7 +605,7 @@ export class LibraryManager {
   async saveMetadata() {
     try {
       await Filesystem.writeFile({
-        path: LIBRARY_FILE,
+        path: this.resolvePath(LIBRARY_FILE),
         data: JSON.stringify(this.metadata),
         directory: Directory.Documents,
         encoding: Encoding.UTF8,
@@ -573,7 +616,7 @@ export class LibraryManager {
   }
   async handleDeepLink(cartId) {
     const targetFilename = `${cartId}.p8.png`;
-    const checkPath = `${CARTS_DIR}/${targetFilename}`;
+    const checkPath = this.resolvePath(`${CARTS_DIR}/${targetFilename}`);
 
     // check if it exists & validate
     try {
