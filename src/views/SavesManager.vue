@@ -342,7 +342,8 @@ async function deleteState(save) {
 }
 
 // gamepad nav
-import { useGamepadGrid } from "../composables/useGamepadGrid";
+import { useFocusable } from "../composables/useFocusable";
+import { inputManager } from "../services/InputManager";
 
 const flatSaves = computed(() => groupedSaves.value.flatMap((g) => g.files));
 
@@ -363,7 +364,9 @@ const getGlobalIndex = (groupIndex, fileIndex) => {
 const activeSaveIndex = ref(null);
 const activeBtnIndex = ref(0);
 
-const { focusedIndex, setItemRef } = useGamepadGrid({
+const headerFocused = ref(false);
+
+const { focusedIndex, setItemRef } = useFocusable({
   items: flatSaves,
   columns: ref(1),
   onSelect: () => {
@@ -383,20 +386,12 @@ const { focusedIndex, setItemRef } = useGamepadGrid({
   ),
 });
 
-const headerFocused = ref(false);
-
-const handleHeaderNav = (e) => {
+const handleInput = (action) => {
   if (headerFocused.value) {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      e.stopImmediatePropagation();
+    if (action === "nav-down") {
       headerFocused.value = false;
       focusedIndex.value = 0;
-    }
-
-    if (["Enter", " ", "z", "x", "Z", "X"].includes(e.key)) {
-      e.preventDefault();
-      e.stopImmediatePropagation();
+    } else if (action === "confirm" || action === "back") {
       router.back();
     }
   } else if (activeSaveIndex.value !== null) {
@@ -404,33 +399,27 @@ const handleHeaderNav = (e) => {
     const save = flatSaves.value[activeSaveIndex.value];
     if (!save) return;
 
-    if (e.key === "ArrowLeft") {
-      e.preventDefault();
-      e.stopImmediatePropagation();
+    if (action === "nav-left") {
       activeBtnIndex.value = Math.max(0, activeBtnIndex.value - 1);
-    } else if (e.key === "ArrowRight") {
-      e.preventDefault();
-      e.stopImmediatePropagation();
+    } else if (action === "nav-right") {
       activeBtnIndex.value = Math.min(2, activeBtnIndex.value + 1);
-    } else if (["Enter", " ", "z", "x", "Z", "X"].includes(e.key)) {
-      e.preventDefault();
-      e.stopImmediatePropagation();
+    } else if (action === "confirm") {
       if (activeBtnIndex.value === 0) loadState(save);
       else if (activeBtnIndex.value === 1) shareState(save);
       else if (activeBtnIndex.value === 2) deleteState(save);
-    } else if (["Backspace", "Escape", "b"].includes(e.key)) {
-      e.preventDefault();
-      e.stopImmediatePropagation();
+    } else if (action === "back") {
       activeSaveIndex.value = null; // exit card mode
     }
   }
 };
 
+const listenerCleanup = ref(null);
+
 onMounted(() => {
-  window.addEventListener("keydown", handleHeaderNav);
+  listenerCleanup.value = inputManager.addListener(handleInput);
 });
 
 onUnmounted(() => {
-  window.removeEventListener("keydown", handleHeaderNav);
+  if (listenerCleanup.value) listenerCleanup.value();
 });
 </script>

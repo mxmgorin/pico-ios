@@ -720,7 +720,15 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref, computed, reactive, nextTick } from "vue";
+import {
+  onMounted,
+  onUnmounted,
+  ref,
+  computed,
+  reactive,
+  nextTick,
+  unref,
+} from "vue";
 import { useRouter } from "vue-router";
 import { useLibraryStore } from "../stores/library";
 import { storeToRefs } from "pinia";
@@ -730,8 +738,9 @@ import { haptics } from "../utils/haptics";
 import { ImpactStyle } from "@capacitor/haptics";
 import { libraryManager } from "../services/LibraryManager";
 import { Capacitor } from "@capacitor/core";
-import { useGamepadGrid } from "../composables/useGamepadGrid";
+import { useFocusable } from "../composables/useFocusable";
 import { FilePicker } from "@capawesome/capacitor-file-picker";
+import { inputManager } from "../services/InputManager";
 
 const width = ref(window.innerWidth);
 
@@ -748,6 +757,34 @@ const updateWidth = () => {
 onMounted(() => window.addEventListener("resize", updateWidth));
 onUnmounted(() => window.removeEventListener("resize", updateWidth));
 
+const libraryStore = useLibraryStore();
+// init games as safe computed/ref to prevent crash if store is empty
+const {
+  games,
+  loading,
+  searchQuery,
+  sortBy,
+  swapButtons,
+  hapticsEnabled,
+  rootDir,
+  scanProgress,
+} = storeToRefs(libraryStore);
+
+const {
+  loadLibrary,
+  addCartridge,
+  addBundle,
+  removeCartridge,
+  toggleFavorite,
+  renameCartridge,
+  toggleSwapButtons,
+  toggleJoystick,
+  updateRootDirectory,
+} = libraryStore;
+
+const favorites = computed(() => games.value.filter((g) => g.isFavorite));
+const nonFavorites = computed(() => games.value.filter((g) => !g.isFavorite));
+
 const displayGames = computed(() => [
   ...favorites.value,
   ...nonFavorites.value,
@@ -762,11 +799,15 @@ const headerFocusIndex = ref(-1); // -1 = inactive
 // 0: search, 1: sort, 2: settings, 3: bbs, 4: import
 const headerOrder = ["search", "sort", "settings", "bbs", "import"];
 
-const { focusedIndex, setItemRef } = useGamepadGrid({
+// Use the new composable
+const { focusedIndex, setItemRef } = useFocusable({
   items: displayGames,
   columns: gridColumns,
   onSelect: (game) => openGame(game),
-  onSettings: () => router.push("/settings"),
+  onMenu: () => {
+    router.push("/settings");
+  },
+
   onUpOut: () => {
     // enter header (focus search)
     focusedIndex.value = -1;
@@ -775,35 +816,7 @@ const { focusedIndex, setItemRef } = useGamepadGrid({
   enabled: computed(
     () => headerFocusIndex.value === -1 && !cardMenuGameId.value
   ),
-  onMenuToggle: () => {
-    if (
-      focusedIndex.value !== -1 &&
-      !cardMenuGameId.value &&
-      headerFocusIndex.value === -1
-    ) {
-      const game = displayGames.value[focusedIndex.value];
-      if (game) openCardMenu(game);
-    }
-  },
 });
-// watch for 'x' key on grid to open menu
-const handleGridExtras = (e) => {
-  if (
-    focusedIndex.value !== -1 &&
-    !cardMenuGameId.value &&
-    headerFocusIndex.value === -1
-  ) {
-    if (["x", "X", "y", "Y"].includes(e.key)) {
-      // Open card menu for focused game
-      const game = displayGames.value[focusedIndex.value];
-      if (game) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        openCardMenu(game);
-      }
-    }
-  }
-};
 
 // card menu navigation logic
 
@@ -976,18 +989,6 @@ const closeCardMenu = () => {
 };
 
 const router = useRouter();
-const libraryStore = useLibraryStore();
-// fix: initialize games as safe computed/ref to prevent crash if store is empty
-const {
-  games,
-  loading,
-  searchQuery,
-  sortBy,
-  swapButtons,
-  hapticsEnabled,
-  rootDir,
-  scanProgress,
-} = storeToRefs(libraryStore);
 
 const isAndroid = computed(() => Capacitor.getPlatform() === "android");
 const needsDirectorySetup = computed(
@@ -1013,23 +1014,7 @@ async function pickAndroidDirectory() {
     }
   }
 }
-
-const {
-  loadLibrary,
-  addCartridge,
-  addBundle,
-  removeCartridge,
-  toggleFavorite,
-  renameCartridge,
-  toggleSwapButtons,
-  toggleJoystick,
-  updateRootDirectory,
-} = libraryStore;
-
 // split lists
-const favorites = computed(() => games.value.filter((g) => g.isFavorite));
-const nonFavorites = computed(() => games.value.filter((g) => !g.isFavorite));
-
 const hasFavorites = computed(() => favorites.value.length > 0);
 
 const fileInput = ref(null);
@@ -1242,17 +1227,98 @@ async function openGame(game) {
   }
 }
 
+const listenerCleanup = ref(null);
+
 onMounted(() => {
   window.addEventListener("keydown", handleHeaderNav);
   window.addEventListener("keydown", handleCardMenuNav);
-  window.addEventListener("keydown", handleGridExtras);
+  listenerCleanup.value = inputManager.addListener(handleGamepadInput);
 });
 
 onUnmounted(() => {
-  window.removeEventListener("keydown", handleHeaderNav);
-  window.removeEventListener("keydown", handleCardMenuNav);
-  window.removeEventListener("keydown", handleGridExtras);
+  if (listenerCleanup.value) listenerCleanup.value();
 });
+
+const handleGamepadInput = (action) => {
+  if (showRenameModal.value) return;
+
+  const isTyping = document.activeElement?.tagName === "INPUT";
+
+  if (isTyping) {
+    if (action === "nav-down") {
+      handleHeaderAction(action);
+    }
+    return;
+  }
+
+  if (cardMenuGameId.value) {
+    handleCardMenuAction(action);
+    return;
+  }
+
+  if (headerFocusIndex.value !== -1) {
+    handleHeaderAction(action);
+    return;
+  }
+};
+
+const handleHeaderAction = (action) => {
+  if (action === "nav-down") {
+    if ([0, 1].includes(headerFocusIndex.value)) {
+      // exit header -> grid
+      headerFocusIndex.value = -1;
+      focusedIndex.value = 0;
+    } else if ([2, 3, 4].includes(headerFocusIndex.value)) {
+      // upper row down -> search/sort
+      headerFocusIndex.value = 0;
+    }
+  } else if (action === "nav-up") {
+    if (headerFocusIndex.value === 0)
+      headerFocusIndex.value = 2; // search -> settings
+    else if (headerFocusIndex.value === 1) headerFocusIndex.value = 2; // sort -> settings
+  } else if (action === "nav-right") {
+    if (headerFocusIndex.value === 0)
+      headerFocusIndex.value = 1; // search -> sort
+    else if (headerFocusIndex.value === 4)
+      headerFocusIndex.value = 3; // import -> bbs
+    else if (headerFocusIndex.value === 3) headerFocusIndex.value = 2; // bbs -> settings
+  } else if (action === "nav-left") {
+    if (headerFocusIndex.value === 1)
+      headerFocusIndex.value = 0; // sort -> search
+    else if (headerFocusIndex.value === 2)
+      headerFocusIndex.value = 3; // settings -> bbs
+    else if (headerFocusIndex.value === 3) headerFocusIndex.value = 4; // bbs -> import
+  } else if (action === "confirm") {
+    triggerHeaderAction(headerFocusIndex.value);
+  } else if (action === "menu") {
+    triggerHeaderAction(headerFocusIndex.value);
+  } else if (action === "back") {
+    headerFocusIndex.value = -1;
+    focusedIndex.value = 0;
+  }
+};
+
+const handleCardMenuAction = (action) => {
+  if (showRenameModal.value) return;
+
+  if (action === "nav-left") {
+    if (cardMenuBtnIndex.value === 0) cardMenuBtnIndex.value = 1;
+  } else if (action === "nav-right") {
+    if (cardMenuBtnIndex.value === 1) cardMenuBtnIndex.value = 0;
+  } else if (action === "nav-down") {
+    if (cardMenuBtnIndex.value !== 2) cardMenuBtnIndex.value = 2;
+  } else if (action === "nav-up") {
+    if (cardMenuBtnIndex.value === 2) cardMenuBtnIndex.value = 0;
+  } else if (action === "confirm") {
+    const game = games.value.find((g) => g.filename === cardMenuGameId.value);
+    if (!game) return;
+    if (cardMenuBtnIndex.value === 0) handleFavorite(game);
+    else if (cardMenuBtnIndex.value === 1) openRenameModal(game);
+    else if (cardMenuBtnIndex.value === 2) handleDelete(game);
+  } else if (action === "back") {
+    closeCardMenu();
+  }
+};
 </script>
 
 <style scoped>

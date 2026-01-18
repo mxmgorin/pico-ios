@@ -382,7 +382,9 @@ onUnmounted(async () => {
   stopAutoSaveTimer();
   picoBridge.shutdown();
 
-  if (gamepadLoopId) cancelAnimationFrame(gamepadLoopId);
+  if (inputCleanup.value) inputCleanup.value();
+  inputManager.setMode("UI");
+
   App.removeAllListeners("backButton");
 });
 
@@ -407,8 +409,10 @@ const toggleMenu = async () => {
   isMenuOpen.value = !isMenuOpen.value;
   if (isMenuOpen.value) {
     picoBridge.pause();
+    inputManager.setMode("UI");
   } else {
     picoBridge.resume();
+    inputManager.setMode("GAME");
   }
 };
 
@@ -610,12 +614,37 @@ function handleGlobalKeydown(e) {
   }
 }
 
-// attach listener
-onMounted(() => {
-  window.addEventListener("keydown", handleGlobalKeydown);
+// gamepad logic replaced by global manager
+import { inputManager } from "../services/InputManager";
 
-  // gamepad loop
-  startGamepadLoop();
+// attach listener
+const inputCleanup = ref(null);
+
+onMounted(() => {
+  // Switch to GAME mode initially
+  inputManager.setMode("GAME");
+
+  inputCleanup.value = inputManager.addListener((event, data) => {
+    if (event === "menu") {
+      toggleMenu();
+      return;
+    }
+
+    // Only handle UI events if menu is open (UI Mode)
+    if (isMenuOpen.value && !isSavesDrawerOpen.value) {
+      if (event === "nav-up") {
+        focusIndex.value =
+          (focusIndex.value - 1 + menuButtons.value.length) %
+          menuButtons.value.length;
+      } else if (event === "nav-down") {
+        focusIndex.value = (focusIndex.value + 1) % menuButtons.value.length;
+      } else if (event === "confirm") {
+        triggerMenuAction(menuButtons.value[focusIndex.value].action);
+      } else if (event === "back") {
+        toggleMenu();
+      }
+    }
+  });
 
   // android back button
   App.addListener("backButton", (data) => {
@@ -629,88 +658,6 @@ onMounted(() => {
     }
   });
 });
-
-// gamepad logic
-let gamepadLoopId = null;
-let lastButtonState = {};
-
-const startGamepadLoop = () => {
-  const loop = () => {
-    pollGamepads();
-    gamepadLoopId = requestAnimationFrame(loop);
-  };
-  loop();
-};
-
-const pollGamepads = () => {
-  const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-
-  for (const gp of gamepads) {
-    if (!gp) continue;
-
-    // menu toggle (select)
-    if (gp.buttons[8]?.pressed) {
-      if (!lastButtonState[gp.index + "-menu"]) {
-        toggleMenu();
-        lastButtonState[gp.index + "-menu"] = true;
-      }
-    } else {
-      lastButtonState[gp.index + "-menu"] = false;
-    }
-
-    // menu nav
-    if (isMenuOpen.value && !isSavesDrawerOpen.value) {
-      // dpad up (12) / down (13)
-      // or axis 1 (left stick y)
-      const up = gp.buttons[12]?.pressed || gp.axes[1] < -0.5;
-      const down = gp.buttons[13]?.pressed || gp.axes[1] > 0.5;
-      const select = gp.buttons[0]?.pressed; // A / Cross
-      const back = gp.buttons[1]?.pressed; // B / Circle
-
-      // up
-      if (up) {
-        if (!lastButtonState[gp.index + "-up"]) {
-          focusIndex.value =
-            (focusIndex.value - 1 + menuButtons.value.length) %
-            menuButtons.value.length;
-          lastButtonState[gp.index + "-up"] = true;
-        }
-      } else {
-        lastButtonState[gp.index + "-up"] = false;
-      }
-
-      // down
-      if (down) {
-        if (!lastButtonState[gp.index + "-down"]) {
-          focusIndex.value = (focusIndex.value + 1) % menuButtons.value.length;
-          lastButtonState[gp.index + "-down"] = true;
-        }
-      } else {
-        lastButtonState[gp.index + "-down"] = false;
-      }
-
-      // select (a)
-      if (select) {
-        if (!lastButtonState[gp.index + "-chk"]) {
-          triggerMenuAction(menuButtons.value[focusIndex.value].action);
-          lastButtonState[gp.index + "-chk"] = true;
-        }
-      } else {
-        lastButtonState[gp.index + "-chk"] = false;
-      }
-
-      // back (b) - close menu
-      if (back) {
-        if (!lastButtonState[gp.index + "-back"]) {
-          toggleMenu(); // close
-          lastButtonState[gp.index + "-back"] = true;
-        }
-      } else {
-        lastButtonState[gp.index + "-back"] = false;
-      }
-    }
-  }
-};
 </script>
 
 <style>

@@ -2,6 +2,18 @@
   "appId": "com.jevon.pocket8",
   "appName": "Pocket8",
   "webDir": "dist",
+  "ios": {
+    "includePlugins": [
+      "@boengli/capacitor-fullscreen",
+      "@capacitor/action-sheet",
+      "@capacitor/app",
+      "@capacitor/dialog",
+      "@capacitor/filesystem",
+      "@capacitor/haptics",
+      "@capacitor/share",
+      "@capawesome/capacitor-file-picker"
+    ]
+  },
   "server": {
     "allowNavigation": [
       "corsproxy.io",

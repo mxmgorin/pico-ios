@@ -28,7 +28,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { App } from "@capacitor/app";
 import { Fullscreen } from "@boengli/capacitor-fullscreen";
@@ -39,6 +39,7 @@ import { useToast } from "./composables/useToast";
 import BiosImporter from "./components/BiosImporter.vue";
 import { EngineLoader } from "./utils/EngineLoader";
 import { libraryManager } from "./services/LibraryManager";
+import { inputManager } from "./services/InputManager";
 
 const toast = useToast();
 const router = useRouter();
@@ -47,6 +48,8 @@ const isCheckingEngine = ref(true);
 const showImporter = ref(false);
 
 onMounted(async () => {
+  inputManager.init();
+
   // android immersive mode
   if (Capacitor.getPlatform() === "android") {
     try {
@@ -158,6 +161,10 @@ onMounted(async () => {
     console.log("[App] Native Force-Feed received:", url);
     processDeepLink(url);
   };
+});
+
+onUnmounted(() => {
+  inputManager.destroy();
 });
 </script>
 

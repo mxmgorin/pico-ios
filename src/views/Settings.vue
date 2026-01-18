@@ -105,7 +105,8 @@ import { ImpactStyle } from "@capacitor/haptics";
 import { FilePicker } from "@capawesome/capacitor-file-picker";
 import { ScopedStorage } from "@daniele-rolli/capacitor-scoped-storage";
 import { Capacitor } from "@capacitor/core";
-import { useGamepadGrid } from "../composables/useGamepadGrid";
+import { useFocusable } from "../composables/useFocusable";
+import { inputManager } from "../services/InputManager";
 
 import { useToast } from "../composables/useToast";
 
@@ -122,178 +123,106 @@ const {
   updateRootDirectory,
 } = libraryStore;
 
-const currentRootDir = computed(() => {
-  // check for JSON folder object
-  if (rootDir.value && rootDir.value.startsWith("{")) {
-    const savedName = localStorage.getItem("pico_root_name");
-    if (savedName) return savedName;
-    try {
-      const folder = JSON.parse(rootDir.value);
-      return folder.name || "External Folder";
-    } catch (e) {}
-  }
-  // content:// URI format
-  if (rootDir.value && rootDir.value.startsWith("content://")) {
-    const savedName = localStorage.getItem("pico_root_name");
-    if (savedName) return savedName;
-    return "External Storage";
-  }
-  return rootDir.value || "Default";
-});
 const isAndroid = computed(() => Capacitor.getPlatform() === "android");
+
+const settingsItems = computed(() => {
+  const items = [
+    {
+      id: "swap",
+      type: "toggle",
+      label: "Swap A/B Buttons",
+      subtext: "Switch the confirm/back button positions",
+      value: swapButtons.value,
+      action: async () => {
+        haptics.impact(ImpactStyle.Light);
+        toggleSwapButtons();
+      },
+    },
+    {
+      id: "joystick",
+      type: "toggle",
+      label: "Virtual Joystick",
+      subtext: "Show on-screen controls",
+      value: useJoystick.value,
+      action: async () => {
+        haptics.impact(ImpactStyle.Light);
+        toggleJoystick();
+      },
+    },
+    {
+      id: "haptics",
+      type: "toggle",
+      label: "Haptic Feedback",
+      subtext: "Vibrate on interactions",
+      value: hapticsEnabled.value,
+      action: async () => {
+        haptics.impact(ImpactStyle.Light);
+        toggleHaptics();
+      },
+    },
+    {
+      id: "fullscreen",
+      type: "toggle",
+      label: "Fullscreen",
+      subtext: "Hide valid status bars (Android only)",
+      value: fullscreen.value,
+      action: async () => {
+        haptics.impact(ImpactStyle.Light);
+        toggleFullscreen();
+      },
+    },
+  ];
+
+  if (isAndroid.value) {
+    items.push({
+      id: "root-dir",
+      type: "link",
+      label: "Library Location",
+      subtext: rootDir.value || "Select folder...",
+      action: pickAndroidDirectory,
+    });
+  }
+
+  return items;
+});
 
 async function pickAndroidDirectory() {
   haptics.impact(ImpactStyle.Light).catch(() => {});
   try {
-    const result = await ScopedStorage.pickFolder();
+    const result = await FilePicker.pickDirectory();
+    if (result.files && result.files.length > 0) {
+      const picked = result.files[0];
+      const newPath = picked.name || "Pocket8";
 
-    console.log(
-      "[Settings] ScopedStorage.pickFolder() returned:",
-      JSON.stringify(result, null, 2)
-    );
-    const folderObj = result?.folder;
-
-    if (!folderObj || !folderObj.id) {
-      console.error("[Settings] Failed to extract folder from:", result);
-      alert("Failed to get folder from picker. Please try again.");
-      return;
-    }
-
-    const folderName = folderObj.name || "External Folder";
-
-    console.log(
-      "[Settings] Folder object:",
-      JSON.stringify(folderObj, null, 2)
-    );
-
-    if (
-      confirm(
-        `Set library directory to '${folderName}'?\n(App will reload library from this location)`
-      )
-    ) {
-      localStorage.setItem("pico_root_name", folderName);
-
-      await updateRootDirectory(JSON.stringify(folderObj));
-
-      await libraryStore.loadLibrary();
-      haptics.success().catch(() => {});
+      if (confirm(`Set library directory to '${newPath}'?`)) {
+        await libraryStore.updateRootDirectory(newPath);
+        haptics.success().catch(() => {});
+      }
     }
   } catch (e) {
-    console.error("[Settings] pickAndroidDirectory error:", e);
     if (e.message !== "User cancelled") {
       alert("Failed to pick directory: " + e.message);
     }
   }
 }
 
-const settingsItems = computed(() => {
-  const items = [
-    {
-      id: "swap",
-      label: "Swap Action Buttons",
-      type: "toggle",
-      value: swapButtons.value,
-      action: toggleSwapButtons,
-    },
-    {
-      id: "joystick",
-      label: "Enable Virtual Joystick",
-      type: "toggle",
-      value: useJoystick.value,
-      action: toggleJoystick,
-    },
-    {
-      id: "fullscreen",
-      label: "Fullscreen Mode",
-      subtext: "Hide on-screen controls (Ghost button)",
-      type: "toggle",
-      value: fullscreen.value,
-      action: toggleFullscreen,
-    },
-    {
-      id: "haptics",
-      label: "Haptics",
-      type: "toggle",
-      value: hapticsEnabled.value,
-      action: toggleHaptics,
-    },
-  ];
-
-  if (isAndroid.value) {
-    items.unshift({
-      id: "library",
-      label: "Library Directory",
-      subtext: currentRootDir.value
-        ? `Current: ${currentRootDir.value}`
-        : "No directory selected",
-      type: "link",
-      action: pickAndroidDirectory,
-    });
-  }
-
-  items.push({
-    id: "rescan",
-    label: "Rescan Library",
-    subtext: "Refresh game list and cache",
-    type: "link",
-    action: handleRescan,
-  });
-
-  items.push({
-    id: "saves",
-    label: "Manage Saved Data",
-    type: "link",
-    action: () => router.push("/settings/saves"),
-  });
-
-  return items;
-});
-
-const handleRescan = async () => {
-  if (confirm("Rescan library? This will refresh your game list.")) {
-    showToast("Scanning...");
-    await libraryStore.rescanLibrary();
-    haptics.success();
-    showToast("Library Updated");
-  }
-};
-
-const headerFocused = ref(false);
-
-const { focusedIndex, setItemRef } = useGamepadGrid({
+// focusable
+const { focusedIndex, setItemRef } = useFocusable({
   items: settingsItems,
-  columns: ref(1),
   onSelect: (item) => item.action(),
   onBack: () => router.back(),
-  onUpOut: () => {
-    focusedIndex.value = -1;
-    headerFocused.value = true;
-  },
-  enabled: computed(() => !headerFocused.value),
 });
 
-const handleHeaderNav = (e) => {
-  if (!headerFocused.value) return;
-
-  if (e.key === "ArrowDown") {
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    headerFocused.value = false;
-    focusedIndex.value = 0;
-  }
-
-  if (["Enter", " ", "z", "x", "Z", "X"].includes(e.key)) {
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    router.back();
-  }
-};
+// header focus
+const headerFocused = ref(false);
 
 onMounted(() => {
-  window.addEventListener("keydown", handleHeaderNav);
-});
-
-onUnmounted(() => {
-  window.removeEventListener("keydown", handleHeaderNav);
+  inputManager.addListener((action) => {
+    if (action === "back") {
+      router.back();
+    } else if (action === "menu") {
+      router.back();
+    }
+  });
 });
 </script>
