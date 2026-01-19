@@ -1,14 +1,6 @@
 <template>
   <div
-    class="relative w-full h-full flex justify-between items-center px-6 pb-[calc(env(safe-area-inset-bottom)+20px)] landscape:grid landscape:grid-cols-[240px_1fr_240px] landscape:p-0 landscape:pb-[env(safe-area-inset-bottom)] landscape:items-stretch pointer-events-auto select-none"
-    style="
-      -webkit-user-select: none;
-      user-select: none;
-      -webkit-touch-callout: none;
-      touch-action: none;
-      padding-left: env(safe-area-inset-left);
-      padding-right: env(safe-area-inset-right);
-    "
+    class="virtual-controller relative w-full h-full select-none"
     @touchstart.prevent="handleTouch"
     @touchmove.prevent="handleTouch"
     @touchend.prevent="handleTouchEnd"
@@ -18,302 +10,307 @@
     @mouseup.prevent="handleTouchEnd"
     @mouseleave.prevent="handleTouchEnd"
   >
-    <!-- d-pad container left -->
-    <!-- landscape: center left -->
-    <template v-if="!useJoystick">
-      <div
-        ref="dpadRef"
-        class="relative w-36 h-36 small:w-32 small:h-32 ml-6 mb-4 landscape:ml-0 landscape:mb-0 landscape:self-center landscape:justify-self-center touch-action-none landscape:col-start-1"
-        style="
-          -webkit-tap-highlight-color: transparent;
-          touch-action: none;
-          -webkit-user-select: none;
-          user-select: none;
-          will-change: transform;
-        "
-      >
-        <!-- glow effect -->
-        <div
-          class="absolute inset-0 bg-white/5 blur-3xl rounded-full transform -translate-y-4"
-        ></div>
+    <div
+      class="portrait-layout absolute inset-0 flex flex-col z-10 pointer-events-none pb-[max(env(safe-area-inset-bottom),20px)]"
+    >
+      <div class="flex-grow"></div>
 
-        <!-- d-pad svg -->
-        <svg
-          viewBox="0 0 110 110"
-          class="w-full h-full drop-shadow-2xl pointer-events-none"
-          style="overflow: visible"
+      <div
+        class="flex flex-row items-center justify-between px-6 w-full max-w-[480px] min-[600px]:max-w-none min-[600px]:px-16 mx-auto flex-shrink-0"
+      >
+        <div
+          class="control-group relative w-[42vmin] max-w-[180px] aspect-square pointer-events-auto"
+          ref="dpadRef"
+          @touchstart.prevent="handleDPadTouch"
+          @touchmove.prevent="handleDPadTouch"
+          @touchend.prevent="handleTouchEnd"
         >
-          <defs>
-            <linearGradient
-              id="glass-gradient"
-              x1="0%"
-              y1="0%"
-              x2="100%"
-              y2="100%"
+          <template v-if="!useJoystick">
+            <div class="relative w-full h-full">
+              <!-- D-PAD -->
+              <svg viewBox="0 0 110 110" class="w-full h-full drop-shadow-2xl">
+                <defs>
+                  <linearGradient
+                    id="glass-gradient"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%"
+                  >
+                    <stop offset="0%" stop-color="rgba(255, 255, 255, 0.2)" />
+                    <stop offset="50%" stop-color="rgba(255, 255, 255, 0.05)" />
+                    <stop
+                      offset="100%"
+                      stop-color="rgba(255, 255, 255, 0.15)"
+                    />
+                  </linearGradient>
+                </defs>
+                <g
+                  transform="translate(5,5)"
+                  fill="url(#glass-gradient)"
+                  stroke="rgba(255,255,255,0.1)"
+                  stroke-width="0.5"
+                >
+                  <path
+                    d="M36 34 V12 A4 4 0 0 1 64 12 V34 H36"
+                    :class="{ 'fill-white/40': activeKeys.has(38) }"
+                  />
+                  <path
+                    d="M36 66 V88 A4 4 0 0 0 64 88 V66 H36"
+                    :class="{ 'fill-white/40': activeKeys.has(40) }"
+                  />
+                  <path
+                    d="M34 36 H12 A4 4 0 0 0 12 64 H34 V36"
+                    :class="{ 'fill-white/40': activeKeys.has(37) }"
+                  />
+                  <path
+                    d="M66 36 H88 A4 4 0 0 1 88 64 H66 V36"
+                    :class="{ 'fill-white/40': activeKeys.has(39) }"
+                  />
+                  <rect x="36" y="36" width="28" height="28" />
+                </g>
+              </svg>
+            </div>
+          </template>
+          <template v-else>
+            <div
+              class="relative w-full h-full rounded-full border-2 border-white/10 bg-white/5 small:w-full small:h-full"
             >
-              <stop offset="0%" stop-color="rgba(255, 255, 255, 0.2)" />
-              <stop offset="50%" stop-color="rgba(255, 255, 255, 0.05)" />
-              <stop offset="100%" stop-color="rgba(255, 255, 255, 0.15)" />
-            </linearGradient>
-          </defs>
+              <div
+                ref="joystickStickRef"
+                class="absolute w-1/3 h-1/3 rounded-full bg-white/20 shadow-lg border border-white/10 pointer-events-none"
+                :style="{
+                  transform: `translate3d(calc(-50% + ${thumbX}px), calc(-50% + ${thumbY}px), 0)`,
+                  top: '50%',
+                  left: '50%',
+                }"
+              ></div>
+            </div>
+          </template>
+        </div>
 
-          <g
-            stroke="rgba(255,255,255,0.2)"
-            stroke-width="0.5"
-            transform="translate(5,5)"
-          >
-            <path
-              d="M36 34 V12 A4 4 0 0 1 64 12 V34 H36"
-              fill="url(#glass-gradient)"
-              :class="{ 'fill-white/30': activeKeys.has(38) }"
-              class="transition-colors duration-150"
-            />
-            <path
-              d="M36 66 V88 A4 4 0 0 0 64 88 V66 H36"
-              fill="url(#glass-gradient)"
-              :class="{ 'fill-white/30': activeKeys.has(40) }"
-              class="transition-colors duration-150"
-            />
-            <path
-              d="M34 36 H12 A4 4 0 0 0 12 64 H34 V36"
-              fill="url(#glass-gradient)"
-              :class="{ 'fill-white/30': activeKeys.has(37) }"
-              class="transition-colors duration-150"
-            />
-            <path
-              d="M66 36 H88 A4 4 0 0 1 88 64 H66 V36"
-              fill="url(#glass-gradient)"
-              :class="{ 'fill-white/30': activeKeys.has(39) }"
-              class="transition-colors duration-150"
-            />
-            <rect
-              x="36"
-              y="36"
-              width="28"
-              height="28"
-              fill="url(#glass-gradient)"
-            />
-          </g>
-        </svg>
-      </div>
-    </template>
-
-    <!-- joystick container -->
-    <template v-else>
-      <div
-        ref="dpadRef"
-        class="relative w-36 h-36 small:w-32 small:h-32 ml-6 mb-4 landscape:ml-0 landscape:mb-0 landscape:self-center landscape:justify-self-center touch-action-none landscape:col-start-1 flex items-center justify-center"
-        style="
-          -webkit-tap-highlight-color: transparent;
-          touch-action: none;
-          -webkit-user-select: none;
-          user-select: none;
-        "
-      >
-        <!-- glow -->
+        <!-- ACTION BUTTONS -->
         <div
-          class="absolute inset-0 bg-white/5 blur-3xl rounded-full transform -translate-y-4"
-        ></div>
-
-        <!-- joystick base -->
-        <div
-          class="w-full h-full rounded-full border-2 border-white/10 bg-white/5 backdrop-blur-sm shadow-inner relative flex items-center justify-center"
+          class="control-group relative w-[42vmin] max-w-[180px] aspect-square pointer-events-auto"
+          ref="actionZoneRef"
+          @touchstart.prevent="handleActionTouch"
+          @touchmove.prevent="handleActionTouch"
+          @touchend.prevent="handleActionTouch"
         >
-          <!-- inner stick -->
+          <!-- button 1 (top right) -->
           <div
-            ref="joystickStickRef"
-            class="absolute w-16 h-16 -ml-8 -mt-8 top-1/2 left-1/2 rounded-full bg-white/20 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.3)] border border-white/10 will-change-transform z-10"
-          ></div>
+            ref="btn1Ref"
+            class="absolute top-[2%] right-[2%] w-[48%] h-[48%] rounded-full shadow-lg border transition-transform active:scale-90"
+            :class="[
+              btn1.label === 'o'
+                ? 'bg-red-500/20 border-red-500/50'
+                : 'bg-blue-500/20 border-blue-500/50',
+              { '!bg-white/40 !scale-95': activeKeys.has(btn1.code) },
+            ]"
+          >
+            <span
+              class="text-white font-bold font-pico absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[clamp(1.5rem,5vw,2.25rem)]"
+              >{{ btn1.label }}</span
+            >
+          </div>
+          <!-- button 2 (bottom left) -->
+          <div
+            ref="btn2Ref"
+            class="absolute bottom-[2%] left-[2%] w-[48%] h-[48%] rounded-full shadow-lg border transition-transform active:scale-90"
+            :class="[
+              btn2.label === 'o'
+                ? 'bg-red-500/20 border-red-500/50'
+                : 'bg-blue-500/20 border-blue-500/50',
+              { '!bg-white/40 !scale-95': activeKeys.has(btn2.code) },
+            ]"
+          >
+            <span
+              class="text-white font-bold font-pico absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[clamp(1.5rem,5vw,2.25rem)]"
+              >{{ btn2.label }}</span
+            >
+          </div>
         </div>
       </div>
-    </template>
 
-    <!-- menu button -->
-    <button
-      class="hidden landscape:flex absolute top-6 left-8 w-12 h-12 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.1)] active:bg-white/20 active:scale-95 transition-all duration-300 items-center justify-center z-50 pointer-events-auto"
-      @click="openMenu"
-      @touchstart.stop.prevent="openMenu"
-    >
-      <!-- home icon -->
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke-width="2"
-        stroke="currentColor"
-        class="w-5 h-5 text-white/80 pointer-events-none"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"
-        />
-      </svg>
-    </button>
-
-    <!-- portrait home button -->
-    <button
-      class="landscape:hidden absolute top-2 left-1/2 transform -translate-x-1/2 w-12 h-12 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.1)] active:bg-white/20 active:scale-95 transition-all duration-300 flex items-center justify-center z-40 pointer-events-auto"
-      @click="openMenu"
-      @touchstart.stop.prevent="openMenu"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke-width="2"
-        stroke="currentColor"
-        class="w-5 h-5 text-white/80 pointer-events-none"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"
-        />
-      </svg>
-    </button>
-
-    <!-- center controls -->
-    <div
-      class="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex items-center gap-8 pointer-events-auto landscape:hidden"
-    >
-      <!-- portrait select -->
-      <button
-        class="group flex flex-col items-center gap-2 active:scale-95 transition-transform duration-300 min-w-[44px] min-h-[44px] justify-center pointer-events-auto"
-        @click="openMenu"
-        @touchstart.stop.prevent="openMenu"
-      >
-        <div
-          class="w-12 h-4 rounded-full bg-white/20 backdrop-blur-md border border-white/10 shadow-sm active:bg-white/40 transition-colors -rotate-[25deg] pointer-events-none"
-        ></div>
-        <span
-          class="text-[10px] font-bold text-white/50 tracking-widest uppercase font-sans pointer-events-none"
-          >select</span
-        >
-      </button>
-
-      <!-- portrait start -->
-      <button
-        class="group flex flex-col items-center gap-2 active:scale-95 transition-transform duration-300 min-w-[44px] min-h-[44px] justify-center"
-        @touchstart.stop.prevent="pressKey(13)"
-        @touchend.stop.prevent="releaseKey(13)"
-        @mousedown.stop.prevent="pressKey(13)"
-        @mouseup.stop.prevent="releaseKey(13)"
-      >
-        <div
-          class="w-12 h-4 rounded-full bg-white/20 backdrop-blur-md border border-white/10 shadow-sm active:bg-white/40 transition-colors -rotate-[25deg] pointer-events-none"
-        ></div>
-        <span
-          class="text-[10px] font-bold text-white/50 tracking-widest uppercase font-sans pointer-events-none"
-          >start</span
-        >
-      </button>
-    </div>
-
-    <!-- action buttons -->
-    <div
-      ref="actionZoneRef"
-      class="relative w-36 h-48 landscape:w-full landscape:h-full small:w-36 small:h-48 pointer-events-auto mr-0 flex items-end justify-end landscape:items-center landscape:justify-center landscape:col-start-3"
-      @touchstart.prevent="handleActionTouch"
-      @touchmove.prevent="handleActionTouch"
-      @touchend.prevent="handleActionTouch"
-      @touchcancel.prevent="handleActionTouch"
-    >
-      <!-- button container -->
+      <!-- start / select (bottom center) -->
       <div
-        class="relative w-full h-full select-none touch-none pointer-events-none landscape:w-40 landscape:h-40"
+        class="w-full flex justify-center pb-4 mt-12 pointer-events-auto gap-8 min-[850px]:mt-20 transition-[margin] duration-300"
       >
-        <!-- button 1 (right) -->
         <button
-          ref="btn1Ref"
-          class="absolute bottom-20 right-3 landscape:bottom-auto landscape:top-0 landscape:right-0 w-20 h-20 small:w-16 small:h-16 rounded-full shadow-[0_0_15px_rgba(255,255,255,0.3)] backdrop-blur-md transition-transform duration-75 flex items-center justify-center border pointer-events-none overflow-hidden will-change-transform"
-          :class="[
-            btn1.label === 'o'
-              ? 'bg-[rgba(255,0,77,0.15)] border-[#FF004D]/80'
-              : 'bg-[rgba(41,173,255,0.15)] border-[#29ADFF]/80',
-            activeKeys.has(btn1.code) ? 'scale-95' : '',
-          ]"
+          class="flex flex-col items-center gap-1 active:scale-95 transition-transform"
+          @click="openMenu"
+          @touchstart.stop.prevent="openMenu"
         >
-          <!-- active overlay -->
           <div
-            class="absolute inset-0 bg-white/20 transition-opacity duration-75"
-            :class="activeKeys.has(btn1.code) ? 'opacity-100' : 'opacity-0'"
+            class="w-12 h-4 rounded-full bg-white/20 border border-white/10 shadow-sm -rotate-12"
           ></div>
-
-          <span
-            class="text-white font-bold text-3xl font-pico opacity-90 flex items-center justify-center translate-x-[2px] -translate-y-[3px] z-10"
-            :class="{ 'opacity-100': activeKeys.has(btn1.code) }"
-            >{{ btn1.label }}</span
+          <span class="text-[10px] font-bold text-white/50 tracking-widest"
+            >SELECT</span
           >
         </button>
-
-        <!-- button 2 (left) -->
         <button
-          ref="btn2Ref"
-          class="absolute bottom-4 right-[6rem] landscape:bottom-0 landscape:left-0 w-20 h-20 small:w-16 small:h-16 rounded-full shadow-[0_0_15px_rgba(255,255,255,0.3)] backdrop-blur-md transition-transform duration-75 flex items-center justify-center border pointer-events-none overflow-hidden will-change-transform"
-          :class="[
-            btn2.label === 'o'
-              ? 'bg-[rgba(255,0,77,0.15)] border-[#FF004D]/80'
-              : 'bg-[rgba(41,173,255,0.15)] border-[#29ADFF]/80',
-            activeKeys.has(btn2.code) ? 'scale-95' : '',
-          ]"
+          class="flex flex-col items-center gap-1 active:scale-95 transition-transform"
+          @touchstart.stop.prevent="pressKey(13)"
+          @touchend.stop.prevent="releaseKey(13)"
         >
-          <!-- active overlay -->
           <div
-            class="absolute inset-0 bg-white/20 transition-opacity duration-75"
-            :class="activeKeys.has(btn2.code) ? 'opacity-100' : 'opacity-0'"
+            class="w-12 h-4 rounded-full bg-white/20 border border-white/10 shadow-sm -rotate-12"
           ></div>
-
-          <span
-            class="text-white font-bold text-3xl font-pico opacity-90 flex items-center justify-center translate-x-[2px] -translate-y-[3px] z-10"
-            :class="{ 'opacity-100': activeKeys.has(btn2.code) }"
-            >{{ btn2.label }}</span
+          <span class="text-[10px] font-bold text-white/50 tracking-widest"
+            >START</span
           >
         </button>
       </div>
     </div>
 
-    <!-- landscape navigation -->
-    <!-- positioned inward to be closer to game view corners and away from controls -->
-
-    <!-- landscape select -->
-    <button
-      class="hidden landscape:flex absolute bottom-4 left-6 w-16 h-16 pointer-events-auto items-center justify-center flex-col gap-1 active:scale-95 transition-transform duration-300 z-50 pointer-events-auto"
-      @click="openMenu"
-      @touchstart.stop.prevent="openMenu"
+    <!-- landscape layout -->
+    <div
+      class="landscape-layout absolute inset-0 flex-row justify-between items-end px-[max(env(safe-area-inset-left),30px)] pr-[max(env(safe-area-inset-right),30px)] pb-[max(env(safe-area-inset-bottom),40px)] pointer-events-none z-10"
+      style="display: none"
     >
+      <!-- left: dpad + select -->
       <div
-        class="w-12 h-4 rounded-full bg-white/20 backdrop-blur-md border border-white/10 shadow-sm active:bg-white/40 transition-colors -rotate-[25deg] pointer-events-none"
-      ></div>
-      <span
-        class="text-[10px] font-bold text-white/50 tracking-widest uppercase font-sans mt-1 pointer-events-none"
-        >select</span
+        class="flex flex-col items-center justify-end gap-5 min-[850px]:gap-20 pointer-events-auto h-full"
       >
-    </button>
+        <div
+          ref="dpadRefLS"
+          class="relative w-[min(32vh,38vw)] max-w-[180px] aspect-square"
+        >
+          <template v-if="!useJoystick">
+            <svg viewBox="0 0 110 110" class="w-full h-full drop-shadow-2xl">
+              <defs>
+                <linearGradient
+                  id="glass-gradient-ls"
+                  x1="0%"
+                  y1="0%"
+                  x2="100%"
+                  y2="100%"
+                >
+                  <stop offset="0%" stop-color="rgba(255, 255, 255, 0.2)" />
+                  <stop offset="50%" stop-color="rgba(255, 255, 255, 0.05)" />
+                  <stop offset="100%" stop-color="rgba(255, 255, 255, 0.15)" />
+                </linearGradient>
+              </defs>
+              <g
+                transform="translate(5,5)"
+                fill="url(#glass-gradient-ls)"
+                stroke="rgba(255,255,255,0.1)"
+                stroke-width="0.5"
+              >
+                <path
+                  d="M36 34 V12 A4 4 0 0 1 64 12 V34 H36"
+                  :class="{ 'fill-white/40': activeKeys.has(38) }"
+                />
+                <path
+                  d="M36 66 V88 A4 4 0 0 0 64 88 V66 H36"
+                  :class="{ 'fill-white/40': activeKeys.has(40) }"
+                />
+                <path
+                  d="M34 36 H12 A4 4 0 0 0 12 64 H34 V36"
+                  :class="{ 'fill-white/40': activeKeys.has(37) }"
+                />
+                <path
+                  d="M66 36 H88 A4 4 0 0 1 88 64 H66 V36"
+                  :class="{ 'fill-white/40': activeKeys.has(39) }"
+                />
+                <rect x="36" y="36" width="28" height="28" />
+              </g>
+            </svg>
+          </template>
+          <template v-else>
+            <div
+              class="relative w-full h-full rounded-full border-2 border-white/10 bg-white/5"
+            >
+              <div
+                class="absolute w-1/3 h-1/3 top-1/3 left-1/3 rounded-full bg-white/20 shadow-lg border border-white/10 pointer-events-none"
+                :style="{
+                  transform: `translate3d(${thumbX}px, ${thumbY}px, 0)`,
+                }"
+              ></div>
+            </div>
+          </template>
+        </div>
 
-    <!-- landscape start -->
-    <button
-      class="hidden landscape:flex absolute bottom-4 right-6 w-16 h-16 pointer-events-auto items-center justify-center flex-col gap-1 active:scale-95 transition-transform duration-300 z-50 pointer-events-auto"
-      @touchstart.stop.prevent="pressKey(13)"
-      @touchend.stop.prevent="releaseKey(13)"
-      @mousedown.stop.prevent="pressKey(13)"
-      @mouseup.stop.prevent="releaseKey(13)"
-    >
+        <button
+          class="flex flex-col items-center gap-1 active:scale-95 transition-transform"
+          @click="openMenu"
+          @touchstart.stop.prevent="openMenu"
+        >
+          <div
+            class="w-12 h-4 rounded-full bg-white/20 border border-white/10 shadow-sm -rotate-12"
+          ></div>
+          <span class="text-[10px] font-bold text-white/50 tracking-widest"
+            >SELECT</span
+          >
+        </button>
+      </div>
+
+      <!-- right: buttons + start -->
       <div
-        class="w-12 h-4 rounded-full bg-white/20 backdrop-blur-md border border-white/10 shadow-sm active:bg-white/40 transition-colors -rotate-[25deg] pointer-events-none"
-      ></div>
-      <span
-        class="text-[10px] font-bold text-white/50 tracking-widest uppercase font-sans mt-1 pointer-events-none"
-        >start</span
+        class="flex flex-col items-center gap-6 min-[850px]:gap-16 pointer-events-auto"
       >
-    </button>
+        <div
+          ref="actionZoneRefLS"
+          class="relative w-[min(32vh,38vw)] max-w-[180px] aspect-square"
+          @touchstart.prevent="handleActionTouch"
+          @touchmove.prevent="handleActionTouch"
+          @touchend.prevent="handleActionTouch"
+        >
+          <!-- button 1 (top right) -->
+          <div
+            ref="btn1RefLS"
+            class="absolute top-[2%] right-[2%] w-[48%] h-[48%] rounded-full shadow-lg border transition-transform active:scale-90 flex items-center justify-center"
+            :class="[
+              btn1.label === 'o'
+                ? 'bg-red-500/20 border-red-500/50'
+                : 'bg-blue-500/20 border-blue-500/50',
+              { '!bg-white/40 !scale-95': activeKeys.has(btn1.code) },
+            ]"
+          >
+            <span
+              class="text-white font-bold font-pico select-none text-[min(2.5rem,8vmin)] translate-x-[2px] -translate-y-[2px]"
+              >{{ btn1.label }}</span
+            >
+          </div>
+          <!-- button 2 (bottom left) -->
+          <div
+            ref="btn2RefLS"
+            class="absolute bottom-[2%] left-[2%] w-[48%] h-[48%] rounded-full shadow-lg border transition-transform active:scale-90 flex items-center justify-center"
+            :class="[
+              btn2.label === 'o'
+                ? 'bg-red-500/20 border-red-500/50'
+                : 'bg-blue-500/20 border-blue-500/50',
+              { '!bg-white/40 !scale-95': activeKeys.has(btn2.code) },
+            ]"
+          >
+            <span
+              class="text-white font-bold font-pico select-none text-[min(2.5rem,8vmin)] translate-x-[2px] -translate-y-[2px]"
+              >{{ btn2.label }}</span
+            >
+          </div>
+        </div>
+
+        <button
+          class="flex flex-col items-center gap-1 active:scale-95 transition-transform"
+          @touchstart.stop.prevent="pressKey(13)"
+          @touchend.stop.prevent="releaseKey(13)"
+        >
+          <div
+            class="w-12 h-4 rounded-full bg-white/20 border border-white/10 shadow-sm -rotate-12"
+          ></div>
+          <span class="text-[10px] font-bold text-white/50 tracking-widest"
+            >START</span
+          >
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { haptics } from "../utils/haptics";
 import { ImpactStyle } from "@capacitor/haptics";
-import { picoBridge } from "../services/PicoBridge";
+import { inputManager } from "../services/InputManager";
 import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
 import { useLibraryStore } from "../stores/library";
 import { storeToRefs } from "pinia";
@@ -326,7 +323,9 @@ const { swapButtons, useJoystick } = storeToRefs(libraryStore);
 const joystickState = reactive({
   active: false,
 });
-const joystickBaseRef = ref(null);
+const joystickStickRef = ref(null);
+const thumbX = ref(0);
+const thumbY = ref(0);
 
 // # active keys tracking
 const activeKeys = reactive(new Set());
@@ -344,15 +343,20 @@ const btn2 = computed(() =>
     : { label: "x", code: 88, color: "#29ADFF" }
 );
 
+// Portrait refs
 const dpadRef = ref(null);
 const actionZoneRef = ref(null);
 const btn1Ref = ref(null);
 const btn2Ref = ref(null);
-const joystickStickRef = ref(null);
+
+// Landscape refs
+const dpadRefLS = ref(null);
+const actionZoneRefLS = ref(null);
+const btn1RefLS = ref(null);
+const btn2RefLS = ref(null);
 
 let dpadTouchId = null;
 let isMouseDown = false;
-let audioResumed = false;
 let currentDirection = null;
 
 // internal state
@@ -377,55 +381,27 @@ let actionState = {
 
 const emit = defineEmits(["menu"]);
 
+const openMenu = () => {
+  haptics.impact(ImpactStyle.Heavy);
+  emit("menu");
+};
+
 const cacheDpadMetrics = () => {
-  if (dpadRef.value) {
-    const rect = dpadRef.value.getBoundingClientRect();
+  // determine active refs based on visibility (offsetParent check)
+  const activeDpadRef = dpadRefLS.value?.offsetParent
+    ? dpadRefLS.value
+    : dpadRef.value;
+
+  if (activeDpadRef) {
+    const rect = activeDpadRef.getBoundingClientRect();
     dpadState.rect = rect;
+    // For joystick, visual center is the rect center
     dpadState.visualX = rect.left + rect.width / 2;
     dpadState.visualY = rect.top + rect.height / 2;
   }
-  if (btn1Ref.value)
-    actionState.btn1Rect = btn1Ref.value.getBoundingClientRect();
-  if (btn2Ref.value)
-    actionState.btn2Rect = btn2Ref.value.getBoundingClientRect();
 };
 
-const isInsideRect = (x, y, rect, padding = 20) => {
-  if (!rect) return false;
-  return (
-    x >= rect.left - padding &&
-    x <= rect.right + padding &&
-    y >= rect.top - padding &&
-    y <= rect.bottom + padding
-  );
-};
-
-const updateKey = (code, isPressed) => {
-  const wasPressed = activeKeys.has(code);
-  if (isPressed && !wasPressed) pressKey(code);
-  else if (!isPressed && wasPressed) releaseKey(code);
-};
-
-// add piano push
-const handleActionTouch = (e) => {
-  if (!actionState.btn1Rect) cacheDpadMetrics();
-
-  const touches = e.touches;
-  let isBtn1 = false;
-  let isBtn2 = false;
-
-  for (let i = 0; i < touches.length; i++) {
-    const t = touches[i];
-    const x = t.clientX;
-    const y = t.clientY;
-
-    if (isInsideRect(x, y, actionState.btn1Rect)) isBtn1 = true;
-    if (isInsideRect(x, y, actionState.btn2Rect)) isBtn2 = true;
-  }
-
-  updateKey(btn1.value.code, isBtn1);
-  updateKey(btn2.value.code, isBtn2);
-};
+// # touch handling
 
 const handleTouch = (e) => {
   if (e.type.startsWith("mouse")) {
@@ -500,48 +476,11 @@ const handleTouch = (e) => {
   }
 };
 
-const handleTouchEnd = (e) => {
-  if (e.changedTouches) {
-    for (let i = 0; i < e.changedTouches.length; i++) {
-      if (e.changedTouches[i].identifier === dpadTouchId) {
-        clearDpadState();
-        return;
-      }
-    }
-  } else {
-    clearDpadState();
-  }
-};
-
-const clearDpadState = () => {
-  dpadTouchId = null;
-  isMouseDown = false;
-  currentDirection = null;
-
-  // reset joystick visual
-  if (joystickStickRef.value) {
-    joystickStickRef.value.style.transform = `translate3d(0px, 0px, 0)`;
-  }
-  joystickState.active = false;
-
-  for (const k of DPAD_CODES) {
-    if (activeKeys.has(k)) {
-      sendKey(k, "keyup");
-      activeKeys.delete(k);
-    }
-  }
-};
-
 const handleMouseInput = (e) => {
   if (e.type === "mousedown") {
     isMouseDown = true;
     cacheDpadMetrics();
     dpadState.lastInputTime = Date.now();
-
-    if (dpadState.driftFrameId) {
-      cancelAnimationFrame(dpadState.driftFrameId);
-      dpadState.driftFrameId = null;
-    }
 
     dpadState.startX = e.clientX;
     dpadState.startY = e.clientY;
@@ -562,21 +501,60 @@ const handleMouseInput = (e) => {
       dpadState.y = e.clientY;
     }
 
-    processDpadCoordinates(e.clientX, e.clientY);
+    if (useJoystick.value) {
+      processJoystickCoordinates(e.clientX, e.clientY);
+    } else {
+      processDpadCoordinates(e.clientX, e.clientY);
+    }
   } else if (e.type === "mouseup") {
     clearDpadState();
   } else if (isMouseDown) {
     dpadState.lastInputTime = Date.now();
     dpadState.lastTouchX = e.clientX;
     dpadState.lastTouchY = e.clientY;
-    processDpadCoordinates(e.clientX, e.clientY);
+    if (useJoystick.value) {
+      processJoystickCoordinates(e.clientX, e.clientY);
+    } else {
+      processDpadCoordinates(e.clientX, e.clientY);
+    }
+  }
+};
+
+const handleTouchEnd = (e) => {
+  if (e.changedTouches) {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === dpadTouchId) {
+        clearDpadState();
+        return;
+      }
+    }
+  } else {
+    clearDpadState();
+  }
+  handleActionTouch(e); // pass through to action touch end
+};
+
+const clearDpadState = () => {
+  dpadTouchId = null;
+  isMouseDown = false;
+  currentDirection = null;
+
+  // reset joystick visual
+  thumbX.value = 0;
+  thumbY.value = 0;
+  joystickState.active = false;
+
+  for (const k of DPAD_CODES) {
+    if (activeKeys.has(k)) {
+      releaseKey(k);
+    }
   }
 };
 
 const isInsideDpad = (x, y) => {
   const r = dpadState.rect;
   if (!r) return false;
-  const PAD = 40;
+  const PAD = 10;
   return (
     x >= r.left - PAD &&
     x <= r.right + PAD &&
@@ -612,9 +590,8 @@ const processJoystickCoordinates = (clientX, clientY) => {
   }
 
   // update visual state
-  if (joystickStickRef.value) {
-    joystickStickRef.value.style.transform = `translate3d(${clampX}px, ${clampY}px, 0)`;
-  }
+  thumbX.value = clampX;
+  thumbY.value = clampY;
   joystickState.active = true;
 
   // logic: angle & deadzone
@@ -622,7 +599,7 @@ const processJoystickCoordinates = (clientX, clientY) => {
     // deadzone
     if (currentDirection) {
       currentDirection = null;
-      triggerKeys([]);
+      triggerKeys([]); // release all
     }
     return;
   }
@@ -786,151 +763,65 @@ const triggerKeys = (keyCodes) => {
   // release D-pad keys not in new set
   for (const k of activeKeys) {
     if (DPAD_CODES.has(k) && !keyCodes.includes(k)) {
-      sendKey(k, "keyup");
-      activeKeys.delete(k);
+      releaseKey(k);
     }
   }
   // press new D-pad keys
   for (const k of keyCodes) {
     if (!activeKeys.has(k)) {
-      sendKey(k, "keydown");
-      activeKeys.add(k);
+      pressKey(k);
     }
   }
 };
 
-const sendKey = (keyCode, type) => {
-  if (!audioResumed && type === "keydown") {
-    picoBridge.resumeAudio();
-    audioResumed = true;
-  }
+const handleActionTouch = (e) => {
+  const touches = e.touches ? Array.from(e.touches) : [e];
 
-  const map = {
-    37: "ArrowLeft",
-    38: "ArrowUp",
-    39: "ArrowRight",
-    40: "ArrowDown",
-    90: "z",
-    88: "x",
-    13: "Enter",
-    27: "Escape",
+  const activeZone = actionZoneRefLS.value?.offsetParent
+    ? actionZoneRefLS.value
+    : actionZoneRef.value;
+  if (!activeZone) return;
+
+  // determine button refs based on orientation (offsetParent)
+  const isLandscape = !!actionZoneRefLS.value?.offsetParent;
+  const b1Exp = isLandscape ? btn1RefLS.value : btn1Ref.value;
+  const b2Exp = isLandscape ? btn2RefLS.value : btn2Ref.value;
+
+  const checkButton = (btnEl, code) => {
+    if (!btnEl) return false;
+    const rect = btnEl.getBoundingClientRect();
+    const hitSlop = 10;
+
+    return touches.some((t) => {
+      return (
+        t.clientX >= rect.left - hitSlop &&
+        t.clientX <= rect.right + hitSlop &&
+        t.clientY >= rect.top - hitSlop &&
+        t.clientY <= rect.bottom + hitSlop
+      );
+    });
   };
-  const key = map[keyCode] || "";
 
-  const event = new KeyboardEvent(type, {
-    key: key,
-    code: getCodeName(keyCode),
-    keyCode: keyCode,
-    which: keyCode,
-    bubbles: true,
-    cancelable: true,
-    view: window,
-  });
+  if (checkButton(b1Exp, btn1.value.code)) pressKey(btn1.value.code);
+  else releaseKey(btn1.value.code);
 
-  window.dispatchEvent(event);
-  updateBitmask(keyCode, type === "keydown");
+  if (checkButton(b2Exp, btn2.value.code)) pressKey(btn2.value.code);
+  else releaseKey(btn2.value.code);
 };
 
-const pressKey = async (code) => {
-  if (!audioResumed) {
-    picoBridge.resumeAudio();
-    audioResumed = true;
+const pressKey = (code) => {
+  if (!activeKeys.has(code)) {
+    activeKeys.add(code);
+    haptics.impact(ImpactStyle.Light);
+    inputManager.setVirtualKey(code, true);
   }
-
-  const event = new KeyboardEvent("keydown", {
-    key: getKeyName(code),
-    code: getCodeName(code),
-    keyCode: code,
-    which: code,
-    bubbles: true,
-    cancelable: true,
-    view: window,
-  });
-
-  window.dispatchEvent(event);
-  updateBitmask(code, true);
-  activeKeys.add(code);
-
-  try {
-    await Haptics.impact({ style: ImpactStyle.Light });
-  } catch (e) {}
 };
 
 const releaseKey = (code) => {
-  const event = new KeyboardEvent("keyup", {
-    key: getKeyName(code),
-    code: getCodeName(code),
-    keyCode: code,
-    which: code,
-    bubbles: true,
-    cancelable: true,
-    view: window,
-  });
-
-  window.dispatchEvent(event);
-  updateBitmask(code, false);
-  activeKeys.delete(code);
-};
-
-// # helpers
-function getKeyName(code) {
-  if (code === 37) return "ArrowLeft";
-  if (code === 39) return "ArrowRight";
-  if (code === 38) return "ArrowUp";
-  if (code === 40) return "ArrowDown";
-  if (code === 90) return "z";
-  if (code === 88) return "x";
-  if (code === 13) return "Enter";
-  if (code === 27) return "Escape";
-  return "";
-}
-
-function getCodeName(code) {
-  if (code === 37) return "ArrowLeft";
-  if (code === 39) return "ArrowRight";
-  if (code === 38) return "ArrowUp";
-  if (code === 40) return "ArrowDown";
-  if (code === 90) return "KeyZ";
-  if (code === 88) return "KeyX";
-  if (code === 13) return "Enter";
-  if (code === 27) return "Escape";
-  return "";
-}
-
-function updateBitmask(code, isDown) {
-  if (!window.pico8_buttons) return;
-  const bit =
-    code === 37
-      ? 1
-      : code === 39
-      ? 2
-      : code === 38
-      ? 4
-      : code === 40
-      ? 8
-      : code === 90
-      ? 16
-      : code === 88
-      ? 32
-      : code === 13
-      ? 64
-      : 0;
-
-  if (bit) {
-    if (isDown) window.pico8_buttons[0] |= bit;
-    else window.pico8_buttons[0] &= ~bit;
+  if (activeKeys.has(code)) {
+    activeKeys.delete(code);
+    inputManager.setVirtualKey(code, false);
   }
-}
-
-const openMenu = (e) => {
-  if (e) {
-    e.preventDefault();
-    if (e.stopPropagation) e.stopPropagation();
-  }
-  emit("menu");
-  try {
-    Haptics.impact({ style: ImpactStyle.Medium });
-  } catch (e) {}
 };
 
 onMounted(() => {
@@ -943,6 +834,27 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener("resize", cacheDpadMetrics);
-  clearDpadState();
 });
 </script>
+
+<style scoped>
+/* force portrait layout when height > width and height > 570px */
+@media (max-aspect-ratio: 3/4) and (min-height: 571px) {
+  .portrait-layout {
+    display: flex !important;
+  }
+  .landscape-layout {
+    display: none !important;
+  }
+}
+
+/* force landscape layout when width >= height or height <= 570px */
+@media (min-aspect-ratio: 3/4), (max-height: 570px) {
+  .portrait-layout {
+    display: none !important;
+  }
+  .landscape-layout {
+    display: flex !important;
+  }
+}
+</style>

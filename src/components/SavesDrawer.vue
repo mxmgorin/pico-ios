@@ -98,7 +98,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from "vue";
+import { ref, watch, onMounted, onUnmounted } from "vue";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { haptics } from "../utils/haptics";
 import { ImpactStyle } from "@capacitor/haptics";
@@ -145,23 +145,17 @@ const refreshSaves = async () => {
   }
 };
 
-// # refresh on open
-watch(
-  () => props.isOpen,
-  (newVal) => {
-    if (newVal) {
-      refreshSaves();
-      startNavigationLoop();
-    } else {
-      stopNavigationLoop();
-    }
+const scrollToFocused = () => {
+  const el = saveItemsRef.value[focusedIndex.value];
+  if (el) {
+    el.scrollIntoView({ block: "start", behavior: "smooth" });
   }
-);
+};
 
-// # initial check
-onMounted(() => {
-  if (props.isOpen) refreshSaves();
-});
+// gamepad / keyboard nav
+const focusedIndex = ref(-1);
+const saveItemsRef = ref([]);
+const inputCleanup = ref(null);
 
 const loadSave = (filename) => {
   haptics.impact(ImpactStyle.Medium).catch(() => {});
@@ -170,100 +164,69 @@ const loadSave = (filename) => {
   emit("close");
 };
 
-// gamepad / keyboard nav
-const focusedIndex = ref(-1);
-let gamepadLoopId = null;
-let lastButtonState = {};
-const saveItemsRef = ref([]);
+import { inputManager } from "../services/InputManager";
 
-const startNavigationLoop = () => {
-  const loop = () => {
-    pollGamepads();
-    gamepadLoopId = requestAnimationFrame(loop);
-  };
-  loop();
-};
+const handleInput = (action) => {
+  if (!props.isOpen || loading.value) return;
 
-const stopNavigationLoop = () => {
-  if (gamepadLoopId) {
-    cancelAnimationFrame(gamepadLoopId);
-    gamepadLoopId = null;
+  if (action === "back") {
+    closeDrawer();
+    return;
   }
-  focusedIndex.value = -1;
-};
 
-const scrollToFocused = () => {
-  if (focusedIndex.value >= 0 && saveItemsRef.value[focusedIndex.value]) {
-    saveItemsRef.value[focusedIndex.value].scrollIntoView({
-      block: "nearest",
-      behavior: "smooth",
-    });
+  if (saves.value.length === 0) return;
+
+  if (action === "nav-down") {
+    focusedIndex.value = (focusedIndex.value + 1) % saves.value.length;
+    scrollToFocused();
+    haptics.impact(ImpactStyle.Light).catch(() => {});
+  } else if (action === "nav-up") {
+    focusedIndex.value =
+      (focusedIndex.value - 1 + saves.value.length) % saves.value.length;
+    scrollToFocused();
+    haptics.impact(ImpactStyle.Light).catch(() => {});
+  } else if (action === "confirm") {
+    if (focusedIndex.value >= 0 && saves.value[focusedIndex.value]) {
+      loadSave(saves.value[focusedIndex.value].name);
+    }
   }
 };
 
-const pollGamepads = () => {
-  const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-  for (const gp of gamepads) {
-    if (!gp) continue;
+const setupInputListener = () => {
+  if (inputCleanup.value) return;
+  inputCleanup.value = inputManager.addListener(handleInput);
+};
 
-    // dpad up/down
-    const up = gp.buttons[12]?.pressed || gp.axes[1] < -0.5;
-    const down = gp.buttons[13]?.pressed || gp.axes[1] > 0.5;
-    const select = gp.buttons[0]?.pressed; // A (Cross)
-    const back = gp.buttons[1]?.pressed; // B (Circle)
-
-    // down
-    if (down) {
-      if (!lastButtonState[gp.index + "-down"]) {
-        if (saves.value.length > 0) {
-          focusedIndex.value = (focusedIndex.value + 1) % saves.value.length;
-          scrollToFocused();
-          haptics.impact(ImpactStyle.Light).catch(() => {});
-        }
-        lastButtonState[gp.index + "-down"] = true;
-      }
-    } else {
-      lastButtonState[gp.index + "-down"] = false;
-    }
-
-    // up
-    if (up) {
-      if (!lastButtonState[gp.index + "-up"]) {
-        if (saves.value.length > 0) {
-          focusedIndex.value =
-            (focusedIndex.value - 1 + saves.value.length) % saves.value.length;
-          scrollToFocused();
-          haptics.impact(ImpactStyle.Light).catch(() => {});
-        }
-        lastButtonState[gp.index + "-up"] = true;
-      }
-    } else {
-      lastButtonState[gp.index + "-up"] = false;
-    }
-
-    // select (a)
-    if (select) {
-      if (!lastButtonState[gp.index + "-select"]) {
-        if (focusedIndex.value >= 0 && saves.value[focusedIndex.value]) {
-          loadSave(saves.value[focusedIndex.value].name);
-        }
-        lastButtonState[gp.index + "-select"] = true;
-      }
-    } else {
-      lastButtonState[gp.index + "-select"] = false;
-    }
-
-    // back (b)
-    if (back) {
-      if (!lastButtonState[gp.index + "-back"]) {
-        closeDrawer();
-        lastButtonState[gp.index + "-back"] = true;
-      }
-    } else {
-      lastButtonState[gp.index + "-back"] = false;
-    }
+const removeInputListener = () => {
+  if (inputCleanup.value) {
+    inputCleanup.value();
+    inputCleanup.value = null;
   }
 };
+
+onMounted(() => {
+  if (props.isOpen) {
+    refreshSaves();
+    setupInputListener();
+  }
+});
+
+onUnmounted(() => {
+  removeInputListener();
+});
+
+watch(
+  () => props.isOpen,
+  (newVal) => {
+    if (newVal) {
+      refreshSaves();
+      focusedIndex.value = -1;
+      setupInputListener();
+    } else {
+      removeInputListener();
+    }
+  }
+);
 
 const formatSize = (bytes) => {
   if (bytes < 1024) return bytes + " B";

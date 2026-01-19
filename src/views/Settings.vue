@@ -1,7 +1,5 @@
 <template>
-  <div
-    class="h-screen w-screen overflow-y-auto bg-oled-dark text-white p-6 pt-16"
-  >
+  <div class="min-h-screen w-full bg-oled-dark text-white p-6 pt-16">
     <!-- header -->
     <div class="flex items-center gap-4 mb-8">
       <button
@@ -24,7 +22,9 @@
           />
         </svg>
       </button>
-      <h1 class="text-3xl font-pico-crisp text-white drop-shadow-md">
+      <h1
+        class="font-pico-crisp text-white drop-shadow-md text-[clamp(1.5rem,5vw,3rem)]"
+      >
         Settings
       </h1>
     </div>
@@ -88,7 +88,7 @@
       <!-- app info -->
       <section class="pt-8 flex flex-col items-center opacity-30">
         <p class="text-[10px] font-mono uppercase tracking-widest">
-          Pocket8 v1.6
+          Pocket8 v1.6.1
         </p>
       </section>
     </div>
@@ -233,13 +233,19 @@ const { focusedIndex, setItemRef } = useFocusable({
 // header focus
 const headerFocused = ref(false);
 
+const listenerCleanup = ref(null);
+
 onMounted(() => {
-  inputManager.addListener((action) => {
+  listenerCleanup.value = inputManager.addListener((action) => {
     if (action === "back") {
       router.back();
     } else if (action === "menu") {
       router.back();
     }
   });
+});
+
+onUnmounted(() => {
+  if (listenerCleanup.value) listenerCleanup.value();
 });
 </script>

@@ -25,7 +25,9 @@
         <!-- title & actions -->
         <div class="flex justify-between items-center">
           <div class="flex flex-col">
-            <h1 class="text-3xl font-pico-crisp text-white drop-shadow-md">
+            <h1
+              class="font-pico-crisp text-white drop-shadow-md text-[clamp(1.5rem,5vw,3rem)]"
+            >
               Library
             </h1>
             <span
@@ -41,7 +43,7 @@
               @click="triggerImport"
               class="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-md active:bg-white/20 transition-all hover:scale-105 !relative !z-[9999] !pointer-events-auto"
               :class="{
-                'ring-2 ring-purple-500 bg-white/20': headerFocusIndex === 4,
+                'ring-2 ring-purple-500 bg-white/20': headerFocusIndex === 2,
               }"
             >
               <svg
@@ -89,7 +91,7 @@
               @click="$router.push('/settings')"
               class="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-md active:bg-white/20 transition-all hover:scale-105"
               :class="{
-                'ring-2 ring-purple-500 bg-white/20': headerFocusIndex === 2,
+                'ring-2 ring-purple-500 bg-white/20': headerFocusIndex === 4,
               }"
             >
               <svg
@@ -143,42 +145,71 @@
                 'ring-2 ring-purple-500 bg-white/20': headerFocusIndex === 0,
               }"
               placeholder="Search cartridges..."
+              @keydown="handleHeaderNav"
+              @keydown.escape.stop.prevent="handleHeaderNav"
             />
           </div>
 
-          <div class="relative">
-            <select
-              v-model="sortBy"
-              class="appearance-none bg-white/5 border border-white/10 text-white py-2.5 pl-4 pr-10 rounded-xl focus:outline-none focus:bg-white/10 focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 text-sm transition-all h-full"
+          <div class="relative min-w-[140px] z-[200]">
+            <button
+              @click="sortDropdownOpen = !sortDropdownOpen"
+              @keydown.escape.stop.prevent="
+                sortDropdownOpen = false;
+                headerFocusIndex = -1;
+                focusedIndex = 0;
+                $event.target.blur();
+              "
+              class="w-full h-full flex items-center justify-between appearance-none bg-white/5 border border-white/10 text-white py-2.5 pl-4 pr-3 rounded-xl focus:outline-none focus:bg-white/10 text-sm transition-all"
               :class="{
                 'ring-2 ring-purple-500 bg-white/20': headerFocusIndex === 1,
+                '!bg-black z-[201] ring-2 ring-purple-500': sortDropdownOpen,
               }"
             >
-              <option
-                v-for="opt in sortOptions"
-                :key="opt.value"
-                :value="opt.value"
+              <span class="truncate">{{
+                sortOptions.find((o) => o.value === sortBy)?.label
+              }}</span>
+              <div class="pointer-events-none flex items-center text-white/40">
+                <svg
+                  class="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </div>
+            </button>
+
+            <!-- dropdown menu -->
+            <transition name="fade">
+              <div
+                v-if="sortDropdownOpen"
+                class="absolute top-full right-0 mt-2 w-full bg-black/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl z-[9999]"
               >
-                {{ opt.label }}
-              </option>
-            </select>
-            <div
-              class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-white/40"
-            >
-              <svg
-                class="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </div>
+                <div
+                  v-for="opt in sortOptions"
+                  :key="opt.value"
+                  class="px-4 py-3 text-sm cursor-pointer transition-colors border-b border-white/5 last:border-0"
+                  :class="
+                    sortBy === opt.value
+                      ? 'bg-purple-500/20 text-purple-300 font-bold'
+                      : 'text-white/60'
+                  "
+                  @click="
+                    sortBy = opt.value;
+                    sortDropdownOpen = false;
+                    scrollToTop();
+                  "
+                >
+                  {{ opt.label }}
+                </div>
+              </div>
+            </transition>
           </div>
         </div>
       </div>
@@ -292,7 +323,7 @@
 
         <div
           key="fav-grid"
-          class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6 justify-center"
+          class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 justify-center"
         >
           <div
             v-for="(game, index) in favorites"
@@ -496,7 +527,7 @@
       <transition-group
         name="list"
         tag="div"
-        class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6"
+        class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6"
       >
         <div
           v-for="(game, index) in nonFavorites"
@@ -713,7 +744,7 @@
     <!-- versions footer -->
     <div class="mt-12 mb-6 text-center opacity-30">
       <p class="text-[10px] font-mono uppercase tracking-widest">
-        Pocket8 v1.6
+        Pocket8 v1.6.1
       </p>
     </div>
   </div>
@@ -728,8 +759,9 @@ import {
   reactive,
   nextTick,
   unref,
+  watch,
 } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { useLibraryStore } from "../stores/library";
 import { storeToRefs } from "pinia";
 import { Filesystem, Directory } from "@capacitor/filesystem";
@@ -742,13 +774,16 @@ import { useFocusable } from "../composables/useFocusable";
 import { FilePicker } from "@capawesome/capacitor-file-picker";
 import { inputManager } from "../services/InputManager";
 
+const router = useRouter();
+const route = useRoute();
+
 const width = ref(window.innerWidth);
 
 // grid cols
 const gridColumns = computed(() => {
   if (width.value >= 1024) return 5;
   if (width.value >= 768) return 4;
-  return 2;
+  return 3;
 });
 
 const updateWidth = () => {
@@ -796,111 +831,197 @@ const cardMenuBtnIndex = ref(0); // 0: fav, 1: rename, 2: delete
 
 // header
 const headerFocusIndex = ref(-1); // -1 = inactive
-// 0: search, 1: sort, 2: settings, 3: bbs, 4: import
-const headerOrder = ["search", "sort", "settings", "bbs", "import"];
+const headerEntryTime = ref(0);
+const isTransitioning = ref(false); // lock for preventing double-inputs
+
+// 0: search, 1: sort, 2: import, 3: bbs, 4: settings
+const headerOrder = ["search", "sort", "import", "bbs", "settings"];
+
+const gridInputEnabled = computed(
+  () =>
+    !cardMenuGameId.value &&
+    !sortDropdownOpen.value &&
+    !showRenameModal.value &&
+    !deleteMode.value
+);
 
 // Use the new composable
 const { focusedIndex, setItemRef } = useFocusable({
   items: displayGames,
   columns: gridColumns,
-  onSelect: (game) => openGame(game),
+  enabled: gridInputEnabled,
+  onSelect: (game) => {
+    // prevent double activation if menu just closed
+    if (Date.now() - menuCloseTimestamp.value < 400) return;
+    openGame(game);
+  },
   onMenu: () => {
     router.push("/settings");
   },
 
   onUpOut: () => {
-    // enter header (focus search)
+    // enter header (focus search or close element)
     focusedIndex.value = -1;
-    headerFocusIndex.value = 0;
+    headerFocusIndex.value = 0; // default to search
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    isTransitioning.value = true;
+    setTimeout(() => (isTransitioning.value = false), 250);
   },
   enabled: computed(
-    () => headerFocusIndex.value === -1 && !cardMenuGameId.value
+    () =>
+      headerFocusIndex.value === -1 &&
+      !cardMenuGameId.value &&
+      !sortDropdownOpen.value &&
+      !isTransitioning.value
   ),
 });
 
 // card menu navigation logic
+const sortDropdownOpen = ref(false);
+
+const handleSortNav = (action) => {
+  if (isTransitioning.value) return;
+
+  if (action === "nav-down" || action === "ArrowDown") {
+    // cycle next
+    const idx = sortOptions.findIndex((o) => o.value === sortBy.value);
+    const next = (idx + 1) % sortOptions.length;
+    sortBy.value = sortOptions[next].value;
+  } else if (action === "nav-up" || action === "ArrowUp") {
+    // cycle prev
+    const idx = sortOptions.findIndex((o) => o.value === sortBy.value);
+    const prev = (idx - 1 + sortOptions.length) % sortOptions.length;
+    sortBy.value = sortOptions[prev].value;
+  } else if (action === "confirm" || action === "Enter") {
+    // confirm selection
+    sortDropdownOpen.value = false;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    // unfocus and return to grid immediately
+    headerFocusIndex.value = -1;
+    focusedIndex.value = 0;
+
+    // lock to prevent immediate re-trigger
+    isTransitioning.value = true;
+    setTimeout(() => (isTransitioning.value = false), 350);
+  } else if (
+    action === "back" ||
+    action === "Escape" ||
+    action === "menu" ||
+    action === "wiggle"
+  ) {
+    // cancel / close
+    sortDropdownOpen.value = false;
+
+    // unfocus and return to grid immediately
+    headerFocusIndex.value = -1;
+    focusedIndex.value = 0;
+
+    if (document.activeElement) document.activeElement.blur();
+
+    // prevent re-trigger
+    isTransitioning.value = true;
+    setTimeout(() => (isTransitioning.value = false), 350);
+  }
+};
 
 // header navigation logic
 const handleHeaderNav = (e) => {
   if (headerFocusIndex.value === -1) return;
+  if (isTransitioning.value) return;
 
-  // allow typing in search if actually focused
-  if (
-    document.activeElement?.tagName === "INPUT" &&
-    e.key !== "Escape" &&
-    e.key !== "Enter"
-  )
-    return;
-  if (e.key === "Escape") {
-    if (document.activeElement?.tagName === "INPUT") {
-      document.activeElement.blur();
+  // input escape logic
+  const isInput = document.activeElement?.tagName === "INPUT";
+  if (!isInput) return;
+
+  // if sort dropdown is open, input manager handles it
+  if (sortDropdownOpen.value) {
+    if (["ArrowUp", "ArrowDown", "Enter", "Escape"].includes(e.key)) {
       e.preventDefault();
       e.stopImmediatePropagation();
     }
     return;
   }
 
+  // debounce check
+  if (Date.now() - headerEntryTime.value < 250) {
+    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      return;
+    }
+  }
+
+  // allow typing keys
+  if (
+    e.key !== "Escape" &&
+    e.key !== "Enter" &&
+    !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)
+  )
+    return;
+
+  if (e.key === "Escape") {
+    document.activeElement.blur();
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    return;
+  }
+
+  let didTransition = false;
+
   if (e.key === "ArrowDown") {
     e.preventDefault();
     e.stopImmediatePropagation();
-    if ([0, 1].includes(headerFocusIndex.value)) {
-      // Exit Header -> Grid
-      headerFocusIndex.value = -1;
-      focusedIndex.value = 0;
-    } else if ([2, 3, 4].includes(headerFocusIndex.value)) {
-      // Upper row down -> Search/Sort
-      headerFocusIndex.value = 0;
-    }
-    return;
+    // search -> grid
+    focusedIndex.value = 0;
+    headerFocusIndex.value = -1;
+    e.target.blur();
+    didTransition = true;
   }
 
   if (e.key === "ArrowUp") {
     e.preventDefault();
     e.stopImmediatePropagation();
-    if (headerFocusIndex.value === 0)
-      headerFocusIndex.value = 2; // search -> settings
-    else if (headerFocusIndex.value === 1) headerFocusIndex.value = 2; // sort -> settings
-    return;
+    // search -> import
+    headerFocusIndex.value = 2;
+    e.target.blur();
+    didTransition = true;
   }
 
   if (e.key === "ArrowRight") {
+    // escape logic
+    if (e.target.selectionStart < e.target.value.length) return;
+
     e.preventDefault();
     e.stopImmediatePropagation();
-    if (headerFocusIndex.value === 0)
-      headerFocusIndex.value = 1; // search -> sort
-    else if (headerFocusIndex.value === 4)
-      headerFocusIndex.value = 3; // import -> bbs
-    else if (headerFocusIndex.value === 3) headerFocusIndex.value = 2; // bbs -> settings
-    return;
+
+    // search -> sort
+    headerFocusIndex.value = 1;
+    e.target.blur();
+    didTransition = true;
   }
 
   if (e.key === "ArrowLeft") {
+    // escape logic
+    if (e.target.selectionStart > 0) return;
+
     e.preventDefault();
     e.stopImmediatePropagation();
-    if (headerFocusIndex.value === 1)
-      headerFocusIndex.value = 0; // sort -> search
-    else if (headerFocusIndex.value === 2)
-      headerFocusIndex.value = 3; // settings -> bbs
-    else if (headerFocusIndex.value === 3) headerFocusIndex.value = 4; // bbs -> import
-    return;
+
+    // search -> loop to sort
+    headerFocusIndex.value = 1;
+    e.target.blur();
+    didTransition = true;
   }
 
-  // actions
-  if (["Enter", " ", "z", "x"].includes(e.key)) {
-    e.preventDefault();
-    e.stopImmediatePropagation();
+  if (didTransition) {
+    isTransitioning.value = true;
+    setTimeout(() => (isTransitioning.value = false), 250);
+  }
+
+  // enter triggers action
+  if (e.key === "Enter") {
     triggerHeaderAction(headerFocusIndex.value);
-  }
-
-  // handle escape/backspace in header (back to grid)
-  if (["Backspace", "b", "B"].includes(e.key)) {
-    if (headerFocusIndex.value !== -1) {
-      // explicit "back" handling: go back to grid
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      headerFocusIndex.value = -1;
-      focusedIndex.value = 0;
-    }
   }
 };
 
@@ -910,24 +1031,9 @@ const triggerHeaderAction = (idx) => {
     const input = document.querySelector('input[type="text"]');
     input?.focus();
   } else if (idx === 1) {
-    // sort: try showPicker
-    const select = document.querySelector("select");
-    if (select) {
-      select.focus();
-      try {
-        if (select.showPicker) {
-          select.showPicker();
-        } else {
-          // fallback for older browsers: simulate click
-          select.click();
-        }
-      } catch (e) {
-        console.warn("Failed to open select programmatically:", e);
-      }
-    }
-  } else if (idx === 2) router.push("/settings");
+  } else if (idx === 2) triggerImport();
   else if (idx === 3) openOfficialBBS();
-  else if (idx === 4) triggerImport();
+  else if (idx === 4) router.push("/settings");
 };
 
 const handleCardMenuNav = (e) => {
@@ -986,9 +1092,8 @@ const openCardMenu = (game) => {
 const closeCardMenu = () => {
   cardMenuGameId.value = null;
   cardMenuBtnIndex.value = 0;
+  menuCloseTimestamp.value = Date.now();
 };
-
-const router = useRouter();
 
 const isAndroid = computed(() => Capacitor.getPlatform() === "android");
 const needsDirectorySetup = computed(
@@ -1130,6 +1235,16 @@ async function handleFavorite(game, event) {
   event?.stopPropagation(); // optional chaining in case validation triggers locally
   haptics.impact(ImpactStyle.Light).catch(() => {});
   await toggleFavorite(game);
+
+  // if card menu was open, close it and follow the game if it moved
+  if (cardMenuGameId.value === game.filename) {
+    closeCardMenu();
+    // find new index
+    const idx = displayGames.value.findIndex(
+      (g) => g.filename === game.filename
+    );
+    if (idx !== -1) focusedIndex.value = idx;
+  }
 }
 
 function openRenameModal(game) {
@@ -1164,11 +1279,20 @@ async function confirmRename() {
   const game = currentRenamingGame.value;
 
   closeRenameModal(); // close first for responsiveness
+  closeCardMenu(); // force unfocus
 
   const success = await renameCartridge(game, newName);
   if (success) {
     haptics.success().catch(() => {});
     console.log(`[library] renamed via modal -> ${newName}`);
+    // find new index
+    const reFound = displayGames.value.find(
+      (g) => g.name === newName || g.filename === game.filename
+    );
+    if (reFound) {
+      const idx = displayGames.value.indexOf(reFound);
+      if (idx !== -1) focusedIndex.value = idx;
+    }
   }
 }
 
@@ -1178,9 +1302,10 @@ async function handleDelete(game, event) {
   // ask first
   if (confirm(`Delete ${game.name}? This cannot be undone.`)) {
     // action
-    await removeCartridge(game.filename);
+    const success = await removeCartridge(game.filename);
     // feedback
     haptics.success().catch(() => {});
+    if (success) closeCardMenu();
   }
 }
 
@@ -1239,18 +1364,77 @@ onUnmounted(() => {
   if (listenerCleanup.value) listenerCleanup.value();
 });
 
+// watch for sort dropdown to lock body scroll
+watch(sortDropdownOpen, (isOpen) => {
+  document.body.style.overflow = isOpen ? "hidden" : "";
+});
+
+// watch for route changes to reset state when returning to library
+
+watch(
+  () => route.path,
+  (newPath) => {
+    if (newPath === "/") {
+      headerFocusIndex.value = -1;
+      sortDropdownOpen.value = false;
+    }
+  }
+);
+
 const handleGamepadInput = (action) => {
   if (showRenameModal.value) return;
 
   const isTyping = document.activeElement?.tagName === "INPUT";
 
+  // trap sort globally
+  if (sortDropdownOpen.value) {
+    handleSortNav(action);
+    return;
+  }
+
   if (isTyping) {
     if (action === "nav-down") {
       handleHeaderAction(action);
+    } else if (action === "wiggle" || action === "back") {
+      // allow exiting input via back/wiggle
+      document.activeElement.blur();
     }
     return;
   }
 
+  // GLOBAL SHORTCUTS
+  if (action === "wiggle") {
+    if (cardMenuGameId.value) {
+      closeCardMenu();
+    } else {
+      // toggle wiggle mode and lock focus
+      if (headerFocusIndex.value === -1) {
+        const game = displayGames.value[focusedIndex.value];
+        if (game) openCardMenu(game);
+      }
+    }
+    return;
+  }
+
+  if (action === "back") {
+    // Priority Stack
+    if (cardMenuGameId.value) {
+      closeCardMenu();
+      return;
+    }
+    if (headerFocusIndex.value !== -1) {
+      headerFocusIndex.value = -1;
+      focusedIndex.value = 0; // return to grid
+      return;
+    }
+    if (deleteMode.value) {
+      deleteMode.value = false;
+      return;
+    }
+    return;
+  }
+
+  // DELEGATION
   if (cardMenuGameId.value) {
     handleCardMenuAction(action);
     return;
@@ -1262,39 +1446,80 @@ const handleGamepadInput = (action) => {
   }
 };
 
+const menuCloseTimestamp = ref(0);
+
+const scrollToTop = () => {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
+
 const handleHeaderAction = (action) => {
+  if (isTransitioning.value) return;
+
+  // trap sort
+  if (sortDropdownOpen.value) {
+    handleSortNav(action);
+    return;
+  }
+
+  // debounce check for entering header
+  // allow confirm immediately, but debounce navigation to prevent accidental double-jumps
+  if (Date.now() - headerEntryTime.value < 250) {
+    if (
+      !["confirm"].includes(action) &&
+      ["nav-up", "nav-down", "nav-left", "nav-right"].includes(action)
+    ) {
+      return;
+    }
+  }
+
+  const current = headerFocusIndex.value;
+  let didTransition = false;
+
   if (action === "nav-down") {
-    if ([0, 1].includes(headerFocusIndex.value)) {
-      // exit header -> grid
-      headerFocusIndex.value = -1;
+    if (current === 0 || current === 1) {
+      // bottom -> grid
       focusedIndex.value = 0;
-    } else if ([2, 3, 4].includes(headerFocusIndex.value)) {
-      // upper row down -> search/sort
+      headerFocusIndex.value = -1;
+      didTransition = true;
+    } else {
+      // top row -> bottom row (always search)
       headerFocusIndex.value = 0;
+      didTransition = true;
     }
   } else if (action === "nav-up") {
-    if (headerFocusIndex.value === 0)
-      headerFocusIndex.value = 2; // search -> settings
-    else if (headerFocusIndex.value === 1) headerFocusIndex.value = 2; // sort -> settings
+    // bottom row -> top row
+    if (current === 0) headerFocusIndex.value = 2; // search -> import
+    else if (current === 1) headerFocusIndex.value = 4; // sort -> settings
+    didTransition = true;
   } else if (action === "nav-right") {
-    if (headerFocusIndex.value === 0)
-      headerFocusIndex.value = 1; // search -> sort
-    else if (headerFocusIndex.value === 4)
-      headerFocusIndex.value = 3; // import -> bbs
-    else if (headerFocusIndex.value === 3) headerFocusIndex.value = 2; // bbs -> settings
+    // bottom: search(0) -> sort(1) -> loop(0)
+    if (current === 0) headerFocusIndex.value = 1;
+    else if (current === 1) headerFocusIndex.value = 0;
+    // Top (Standard: 2->3->4)
+    else if (current === 2) headerFocusIndex.value = 3;
+    else if (current === 3) headerFocusIndex.value = 4;
+    else if (current === 4) headerFocusIndex.value = 2;
+    didTransition = true;
   } else if (action === "nav-left") {
-    if (headerFocusIndex.value === 1)
-      headerFocusIndex.value = 0; // sort -> search
-    else if (headerFocusIndex.value === 2)
-      headerFocusIndex.value = 3; // settings -> bbs
-    else if (headerFocusIndex.value === 3) headerFocusIndex.value = 4; // bbs -> import
-  } else if (action === "confirm") {
-    triggerHeaderAction(headerFocusIndex.value);
-  } else if (action === "menu") {
-    triggerHeaderAction(headerFocusIndex.value);
-  } else if (action === "back") {
-    headerFocusIndex.value = -1;
-    focusedIndex.value = 0;
+    // bottom: sort(1) -> search(0) -> loop(1)
+    if (current === 1) headerFocusIndex.value = 0;
+    else if (current === 0) headerFocusIndex.value = 1;
+    // top (standard: 4->3->2)
+    else if (current === 2) headerFocusIndex.value = 4;
+    else if (current === 3) headerFocusIndex.value = 2;
+    else if (current === 4) headerFocusIndex.value = 3;
+    didTransition = true;
+  } else if (action === "confirm" || action === "menu") {
+    if (headerFocusIndex.value === 1) {
+      sortDropdownOpen.value = !sortDropdownOpen.value;
+    } else {
+      triggerHeaderAction(headerFocusIndex.value);
+    }
+  }
+
+  if (didTransition) {
+    isTransitioning.value = true;
+    setTimeout(() => (isTransitioning.value = false), 150);
   }
 };
 
@@ -1312,13 +1537,25 @@ const handleCardMenuAction = (action) => {
   } else if (action === "confirm") {
     const game = games.value.find((g) => g.filename === cardMenuGameId.value);
     if (!game) return;
-    if (cardMenuBtnIndex.value === 0) handleFavorite(game);
-    else if (cardMenuBtnIndex.value === 1) openRenameModal(game);
-    else if (cardMenuBtnIndex.value === 2) handleDelete(game);
-  } else if (action === "back") {
+    if (cardMenuBtnIndex.value === 0) {
+      handleFavorite(game);
+    } else if (cardMenuBtnIndex.value === 1) {
+      openRenameModal(game);
+      closeCardMenu();
+    } else if (cardMenuBtnIndex.value === 2) {
+      handleDelete(game);
+    }
+  } else if (action === "wiggle") {
     closeCardMenu();
   }
 };
+
+// auto-scroll when header is focused
+watch(headerFocusIndex, (newVal) => {
+  if (newVal !== -1) {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+});
 </script>
 
 <style scoped>
@@ -1357,16 +1594,15 @@ const handleCardMenuAction = (action) => {
 .list-move,
 .list-enter-active,
 .list-leave-active {
-  transition: all 0.4s ease;
+  transition: all 0.3s ease;
 }
 .list-enter-from,
 .list-leave-to {
   opacity: 0;
-  transform: translateX(-30px);
+  transform: scale(0.9);
 }
 .list-leave-active {
   position: absolute;
-  width: 100%;
 }
 
 /* custom scrollbar */

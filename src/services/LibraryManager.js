@@ -756,10 +756,31 @@ export class LibraryManager {
       }
 
       // delete main cartridge
-      await Filesystem.deleteFile({
-        path: this.resolvePath(`${CARTS_DIR}/${filename}`),
-        directory: getAppDataDir(),
-      });
+      let deleteSuccess = false;
+      if (this.isScoped && this.scopedFolder) {
+        // scoped storage (android)
+        try {
+          // attempt using the plugin's delete method
+          await ScopedStorage.deleteFile({
+            folder: this.scopedFolder,
+            filename: filename,
+          });
+          deleteSuccess = true;
+        } catch (e) {
+          console.warn(
+            `[library_manager] scoped delete failed for ${filename}`,
+            e
+          );
+        }
+      }
+
+      if (!deleteSuccess) {
+        // legacy / internal / ios
+        await Filesystem.deleteFile({
+          path: this.resolvePath(`${CARTS_DIR}/${filename}`),
+          directory: getAppDataDir(),
+        });
+      }
 
       // delete cached file (android)
       try {
@@ -777,8 +798,11 @@ export class LibraryManager {
         await this.saveMetadata();
       }
 
-      // rescan to update list
-      await this.scan();
+      // update internal state w/o rescan
+      this.games = this.games.filter((g) => g.filename !== filename);
+      localStorage.setItem("pico_cached_games", JSON.stringify(this.games));
+
+      console.log(`[library_manager] removed ${filename} from internal state`);
       return true;
     } catch (e) {
       return false;

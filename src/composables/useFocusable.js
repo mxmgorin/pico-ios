@@ -25,7 +25,30 @@ export function useFocusable({
   const scrollToFocused = () => {
     const el = itemRefs.value[focusedIndex.value];
     if (el) {
-      el.scrollIntoView({ block: "center", behavior: "smooth" });
+      const rect = el.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+
+      const topThreshold = viewportHeight * 0.2;
+      const bottomThreshold = viewportHeight * 0.8;
+
+      let targetY = window.scrollY;
+      let shouldScroll = false;
+
+      if (rect.top < topThreshold) {
+        // Element is entering top danger zone - scroll up
+        const diff = topThreshold - rect.top;
+        targetY = window.scrollY - diff;
+        shouldScroll = true;
+      } else if (rect.bottom > bottomThreshold) {
+        // Element is entering bottom danger zone - scroll down
+        const diff = rect.bottom - bottomThreshold;
+        targetY = window.scrollY + diff;
+        shouldScroll = true;
+      }
+
+      if (shouldScroll) {
+        window.scrollTo({ top: Math.max(0, targetY), behavior: "smooth" });
+      }
     }
   };
 
@@ -101,17 +124,8 @@ export function useFocusable({
         break;
     }
   };
-
-  // keyboard map
   const handleKeydown = (e) => {
-    if (!unref(enabled)) return;
-
-    if (e.key === "ArrowUp") handleInput("nav-up");
-    if (e.key === "ArrowDown") handleInput("nav-down");
-    if (e.key === "ArrowLeft") handleInput("nav-left");
-    if (e.key === "ArrowRight") handleInput("nav-right");
-    if (e.key === "Enter" || e.key === " ") handleInput("confirm");
-    if (e.key === "Backspace" || e.key === "Escape") handleInput("back");
+    // legacy
   };
 
   onMounted(() => {
@@ -137,5 +151,6 @@ export function useFocusable({
   return {
     focusedIndex,
     setItemRef,
+    itemRefs,
   };
 }

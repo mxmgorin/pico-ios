@@ -13,12 +13,13 @@ class InputManagerService {
     this.loopId = null;
     this.lastButtonState = {
       menu: false,
-      navUp: false,
-      navDown: false,
-      navLeft: false,
-      navRight: false,
+      navUp: null,
+      navDown: null,
+      navLeft: null,
+      navRight: null,
       confirm: false,
       back: false,
+      start: false,
     };
 
     // STATIC BUFFERS
@@ -95,7 +96,49 @@ class InputManagerService {
   }
 
   handleKey(e) {
+    // ignore synth events
+    if (!e.isTrusted) return;
+
     this.keys[e.key] = e.type === "keydown";
+
+    if (this.state.inputMode === "UI" && e.type === "keydown") {
+      const isInput =
+        document.activeElement &&
+        (document.activeElement.tagName === "INPUT" ||
+          document.activeElement.tagName === "TEXTAREA");
+
+      // prevent escape
+      if (e.code === "Escape") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+
+      if (e.code === "Backspace" && !isInput) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+
+      if (e.code === "Space" && !isInput) {
+        e.preventDefault();
+      }
+    }
+  }
+
+  setVirtualKey(keyCode, pressed) {
+    const map = {
+      37: "ArrowLeft",
+      38: "ArrowUp",
+      39: "ArrowRight",
+      40: "ArrowDown",
+      88: "x",
+      90: "z",
+      13: "Enter",
+    };
+
+    const key = map[keyCode];
+    if (key) {
+      this.keys[key] = pressed;
+    }
   }
 
   // register a listener for ui events
@@ -112,12 +155,13 @@ class InputManagerService {
     // clear inputs when switching to avoid stuck buttons
     this.lastButtonState = {
       menu: false,
-      navUp: false,
-      navDown: false,
-      navLeft: false,
-      navRight: false,
+      navUp: null, // object when active
+      navDown: null,
+      navLeft: null,
+      navRight: null,
       confirm: false,
       back: false,
+      wiggle: false,
     };
 
     // reset virtual gamepad bits
@@ -243,17 +287,23 @@ class InputManagerService {
       if (o) mask |= 16;
       if (x) mask |= 32;
 
-      // handle pause/menu (start/select)
-      if (
-        buf.select ||
-        buf.start ||
-        this.keys["Escape"] ||
-        this.keys["p"] ||
-        this.keys["P"]
-      ) {
+      // handle pause/menu
+      if (buf.select || this.keys["Escape"]) {
         this.emitOnce("menu");
       } else {
         this.lastButtonState["menu"] = false;
+      }
+
+      if (buf.start || this.keys["Enter"] || this.keys["p"] || this.keys["P"]) {
+        if (!this.lastButtonState["start"]) {
+          this.lastButtonState["start"] = true;
+          this.dispatchKey(80, "keydown");
+        }
+      } else {
+        if (this.lastButtonState["start"]) {
+          this.lastButtonState["start"] = false;
+          this.dispatchKey(80, "keyup");
+        }
       }
 
       // DIRECT INJECTION
@@ -264,10 +314,15 @@ class InputManagerService {
     // UI MODE
     else {
       // nav
-      this.emitChange("nav-up", buf.up);
-      this.emitChange("nav-down", buf.down);
-      this.emitChange("nav-left", buf.left);
-      this.emitChange("nav-right", buf.right);
+      const isTyping = document.activeElement?.tagName === "INPUT";
+
+      this.handleNavInput("nav-up", buf.up);
+      this.handleNavInput("nav-down", buf.down);
+
+      if (!isTyping) {
+        this.handleNavInput("nav-left", buf.left);
+        this.handleNavInput("nav-right", buf.right);
+      }
 
       // confirm / back
       let confirm = false;
@@ -290,16 +345,51 @@ class InputManagerService {
         this.keys[" "]
       )
         confirm = true;
-      if (
-        this.keys["x"] ||
-        this.keys["X"] ||
-        this.keys["Backspace"] ||
-        this.keys["Escape"]
-      )
-        back = true;
+      if (this.keys["x"] || this.keys["X"] || this.keys["Escape"]) back = true;
 
       this.emitChange("confirm", confirm);
       this.emitChange("back", back);
+
+      // edit mode
+      let wiggle = false;
+      if (buf.y) wiggle = true;
+      if (this.keys["e"] || this.keys["E"]) wiggle = true;
+      this.emitChange("wiggle", wiggle);
+    }
+  }
+
+  // handle navigation with key repeat
+  // delay: 400ms, rate: 100ms
+  handleNavInput(event, isPressed) {
+    const now = Date.now();
+    const state = this.lastButtonState[event];
+
+    if (isPressed) {
+      if (!state) {
+        // first press
+        this.emit(event);
+        this.lastButtonState[event] = {
+          pressed: true,
+          startTime: now,
+          lastRepeat: now,
+        };
+      } else if (state.pressed) {
+        // holding
+        const elapsed = now - state.startTime;
+        if (elapsed > 400) {
+          // initial delay
+          if (now - state.lastRepeat > 100) {
+            // repeat rate
+            this.emit(event);
+            state.lastRepeat = now;
+          }
+        }
+      }
+    } else {
+      // released
+      if (state) {
+        this.lastButtonState[event] = null;
+      }
     }
   }
 
@@ -327,6 +417,30 @@ class InputManagerService {
 
   emit(eventName, data = null) {
     this.listeners.forEach((listener) => listener(eventName, data));
+  }
+
+  dispatchKey(keyCode, type) {
+    const keyMap = { 13: "Enter", 80: "p" };
+    const codeMap = { 13: "Enter", 80: "KeyP" };
+
+    const key = keyMap[keyCode] || "";
+    const code = codeMap[keyCode] || "";
+
+    const event = new KeyboardEvent(type, {
+      key: key,
+      code: code,
+      bubbles: true,
+      cancelable: true,
+      view: window,
+    });
+
+    // emscripten: define property for read-only fields
+    Object.defineProperty(event, "keyCode", { get: () => keyCode });
+    Object.defineProperty(event, "which", { get: () => keyCode });
+    Object.defineProperty(event, "charCode", { get: () => keyCode });
+
+    const target = document.getElementById("canvas") || document;
+    target.dispatchEvent(event);
   }
 
   // legacy compat

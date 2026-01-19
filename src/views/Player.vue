@@ -1,22 +1,22 @@
 <template>
   <!-- main layout: flex column for portrait, overlay for landscape -->
   <div
-    class="relative h-screen w-screen overflow-hidden bg-black select-none flex flex-col landscape:flex-row landscape:items-stretch"
+    class="relative h-screen w-screen overflow-hidden bg-black select-none flex flex-col landscape:flex-row landscape:items-stretch portrait:pt-[max(env(safe-area-inset-top),30px)] touch-none overscroll-none"
   >
     <!-- game zone -->
     <div
-      class="game-zone flex-1 relative flex items-center justify-center overflow-hidden w-full landscape:h-full landscape:w-full landscape:px-[max(env(safe-area-inset-left),30px)] landscape:pr-[max(env(safe-area-inset-right),30px)] landscape:py-4 pointer-events-none"
-      :class="{ '!h-full !pb-0': fullscreen }"
+      class="game-zone flex-none w-full aspect-square relative flex items-center justify-center overflow-hidden landscape:flex-1 landscape:aspect-[4/3] landscape:h-full landscape:w-auto landscape:max-w-full pointer-events-none z-10"
+      :class="{ '!h-full !w-full !aspect-auto': fullscreen }"
     >
       <div
         id="canvas-container"
         ref="canvasContainer"
-        class="relative flex items-center justify-center p-1 portrait:pb-8 w-full h-full pointer-events-auto"
-        :class="{ '!p-0 !pb-0': fullscreen }"
+        class="relative flex items-center justify-center p-1 w-full h-full aspect-square pointer-events-auto"
+        :class="{ '!p-0': fullscreen }"
       >
         <canvas
-          class="aspect-square w-full h-full object-contain portrait:object-center landscape:object-center image-pixelated rounded-sm"
-          :class="{ 'shadow-2xl shadow-black/50': isMenuOpen }"
+          class="aspect-square w-full h-full object-contain image-pixelated rounded-sm shadow-2xl bg-black"
+          :class="{ 'shadow-black/50': isMenuOpen }"
           style="will-change: transform"
           id="canvas"
           oncontextmenu="event.preventDefault()"
@@ -24,21 +24,6 @@
           width="128"
           height="128"
         ></canvas>
-
-        <!-- loading overlay -->
-        <div
-          v-if="loading"
-          class="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-20"
-        >
-          <div class="flex flex-col items-center gap-4">
-            <div
-              class="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"
-            ></div>
-            <p class="text-white/60 font-mono text-sm animate-pulse">
-              BOOTING CARTRIDGE...
-            </p>
-          </div>
-        </div>
 
         <!-- pause menu overlay -->
         <div
@@ -50,7 +35,7 @@
             class="flex flex-col gap-4 text-center p-8 landscape:p-4 landscape:gap-2 w-full max-w-xs max-h-screen overflow-y-auto"
           >
             <h2
-              class="text-4xl font-bold text-white mb-8 tracking-widest drop-shadow-md font-pico"
+              class="text-[clamp(1.5rem,5vw,2.5rem)] font-bold text-white mb-4 landscape:mb-2 tracking-widest drop-shadow-md font-pico"
             >
               PAUSE
             </h2>
@@ -62,7 +47,7 @@
               :id="'btn-' + idx"
               @click="triggerMenuAction(btn.action)"
               @touchend.prevent="triggerMenuAction(btn.action)"
-              class="px-8 py-3 rounded-xl font-medium tracking-wider transition-colors w-full backdrop-blur-md focus:ring-4 focus:ring-white/50 outline-none font-pico uppercase"
+              class="px-8 py-3 landscape:py-1 landscape:px-4 landscape:text-sm rounded-xl font-medium tracking-wider transition-colors w-full backdrop-blur-md focus:ring-4 focus:ring-white/50 outline-none font-pico uppercase text-[clamp(0.8rem,4vw,1rem)]"
               :class="[
                 focusIndex === idx
                   ? 'bg-white text-black scale-105 shadow-lg'
@@ -95,33 +80,10 @@
     <!-- controller zone -->
     <div
       v-if="!fullscreen"
-      class="controller-zone relative shrink-0 z-50 portrait:h-[410px] portrait:w-full portrait:bg-black/80 portrait:backdrop-blur-xl portrait:p-1 landscape:absolute landscape:inset-0 landscape:pointer-events-none"
+      class="controller-zone flex-1 relative w-full bg-black/90 backdrop-blur-xl landscape:absolute landscape:inset-0 landscape:bg-transparent landscape:backdrop-blur-none landscape:pointer-events-none z-20"
     >
       <VirtualController @menu="toggleMenu" />
     </div>
-
-    <!-- fullscreen home button -->
-    <button
-      v-if="fullscreen"
-      @click="toggleMenu"
-      @touchstart.prevent="toggleMenu"
-      class="absolute top-8 right-8 z-[70] w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/10 flex items-center justify-center opacity-15 hover:opacity-100 active:opacity-100 transition-opacity duration-300"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="h-6 w-6 text-white"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M4 6h16M4 12h16m-7 6h7"
-        />
-      </svg>
-    </button>
 
     <!-- global toast usage -->
     <!-- saves drawer -->
@@ -144,6 +106,7 @@ import { Filesystem, Directory } from "@capacitor/filesystem";
 import { picoBridge } from "../services/PicoBridge";
 import VirtualController from "../components/VirtualController.vue";
 import SavesDrawer from "../components/SavesDrawer.vue";
+import { inputManager } from "../services/InputManager";
 
 const props = defineProps({
   cartId: {
@@ -465,6 +428,7 @@ const handleStateLoad = async (filename) => {
     isMenuOpen.value = false;
     isSavesDrawerOpen.value = false;
     picoBridge.resume();
+    inputManager.setMode("GAME");
   }
 };
 
@@ -523,6 +487,7 @@ const handleFileImport = async (event) => {
       // close menu to return to game
       isMenuOpen.value = false;
       picoBridge.resume();
+      inputManager.setMode("GAME");
     } else {
       // # standard cart import
       await window.picoBridge.importSaveFile(fileName, uint8Array);
@@ -615,9 +580,6 @@ function handleGlobalKeydown(e) {
   }
 }
 
-// gamepad logic replaced by global manager
-import { inputManager } from "../services/InputManager";
-
 // attach listener
 const inputCleanup = ref(null);
 
@@ -665,5 +627,12 @@ onMounted(() => {
 .image-pixelated {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+}
+
+/* fix for cube aspect ratios to remove portrait padding */
+@media (min-aspect-ratio: 0.95) and (max-aspect-ratio: 1.05) {
+  .portrait\:pt-\[max\(env\(safe-area-inset-top\)\,30px\)\] {
+    padding-top: 0 !important;
+  }
 }
 </style>
