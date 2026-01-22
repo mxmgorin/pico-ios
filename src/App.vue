@@ -32,9 +32,12 @@ import { ref, onMounted, onUnmounted } from "vue";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { App } from "@capacitor/app";
 import { Fullscreen } from "@boengli/capacitor-fullscreen";
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import { Dialog } from "@capacitor/dialog";
 import { RouterView, useRouter } from "vue-router";
+
+// native permission plugin
+const Permission = registerPlugin("Permission");
 import { useToast } from "./composables/useToast";
 import BiosImporter from "./components/BiosImporter.vue";
 import { EngineLoader } from "./utils/EngineLoader";
@@ -55,8 +58,22 @@ onMounted(async () => {
   if (Capacitor.getPlatform() === "android") {
     try {
       await Fullscreen.activateImmersiveMode();
+
+      // check file access
+      const status = await Permission.check();
+      console.log("[App] File Permission Status:", status.granted);
+
+      if (!status.granted) {
+        await Dialog.alert({
+          title: "Setup Required",
+          message:
+            "Pocket8 needs 'All files access' to save cartridges to your Documents folder. Please grant this permission in the next screen.",
+          buttonTitle: "Open Settings",
+        });
+        await Permission.request();
+      }
     } catch (e) {
-      console.warn("[App] failed to activate immersive mode", e);
+      console.warn("[App] Android setup error:", e);
     }
   }
 
@@ -153,10 +170,10 @@ onMounted(async () => {
 
     if (launchUrl && launchUrl.url) {
       // prevent loop & debounce conflict
-      const lastLaunch = sessionStorage.getItem("pico_last_launch_url");
+      const lastLaunch = localStorage.getItem("pico_last_launch_url");
       if (lastLaunch !== launchUrl.url) {
         console.log("[App] Cold start launch url detected:", launchUrl.url);
-        sessionStorage.setItem("pico_last_launch_url", launchUrl.url);
+        localStorage.setItem("pico_last_launch_url", launchUrl.url);
 
         if (window.handleOpenUrl) {
           window.handleOpenUrl(launchUrl.url);

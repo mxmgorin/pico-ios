@@ -144,11 +144,14 @@ import { haptics } from "../utils/haptics";
 import { ImpactStyle } from "@capacitor/haptics";
 // import { FilePicker } from "@capawesome/capacitor-file-picker";
 import { ScopedStorage } from "@daniele-rolli/capacitor-scoped-storage";
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import { useFocusable } from "../composables/useFocusable";
 import { inputManager } from "../services/InputManager";
 
 import { useToast } from "../composables/useToast";
+import { Dialog } from "@capacitor/dialog";
+
+const Permission = registerPlugin("Permission");
 
 const router = useRouter();
 const { showToast } = useToast();

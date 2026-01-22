@@ -1274,7 +1274,12 @@ function openOfficialBBS() {
     "https://www.lexaloffle.com/bbs/?cat=7#sub=2&mode=carts&orderby=featured&ios_player=pocket8";
 
   // open in system browser to set BBS cookie
-  Browser.open({ url: url, windowName: "_system" });
+  if (Capacitor.getPlatform() === "android") {
+    Browser.open({ url: url, windowName: "_system" });
+  } else {
+    // ios and legacy web
+    window.open(url, "_system");
+  }
 }
 
 async function handleFileImport(event) {

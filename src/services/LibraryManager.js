@@ -152,8 +152,9 @@ export class LibraryManager {
   }
 
   resolvePath(path) {
-    const isAndroid = Capacitor.getPlatform() === "android";
-    if (isAndroid) {
+    if (Capacitor.getPlatform() === "android") {
+      // prevent double-prefix
+      if (path.startsWith(ANDROID_APPDATA)) return path;
       return `${ANDROID_APPDATA}/${path}`;
     }
     return path;
@@ -515,13 +516,8 @@ export class LibraryManager {
 
             // android logic
             let cacheName;
-            if (CACHE_DIR === "Images") {
-              const baseName = this.getStemName(game.filename);
-              cacheName = `${baseName}.png`;
-            } else {
-              // cache strategy
-              cacheName = `${game.filename}.png`;
-            }
+            const baseName = this.getStemName(game.filename);
+            cacheName = `${baseName}.png`;
 
             const cachePath = this.resolvePath(`${CACHE_DIR}/${cacheName}`);
             let cacheUri = null;
@@ -548,13 +544,20 @@ export class LibraryManager {
               if (game.sourceType === "external" && game.sourceId) {
                 try {
                   const folderRef = { id: game.sourceId };
+                  const targetPath = game.relativePath || game.filename;
+
                   const { data } = await ScopedStorage.readFile({
                     folder: folderRef,
-                    path: game.relativePath || game.filename,
+                    path: targetPath,
                     encoding: "base64",
                   });
                   base64Data = data;
-                } catch (e) {}
+                } catch (readErr) {
+                  console.warn(
+                    `[LibraryManager] External read failed for cover: ${game.filename}`,
+                    readErr,
+                  );
+                }
               } else {
                 // INTERNAL
                 try {
@@ -580,7 +583,14 @@ export class LibraryManager {
                     directory: getAppDataDir(),
                   });
                   cacheUri = Capacitor.convertFileSrc(stat.uri);
+                  console.log(
+                    `[LibraryManager] Generated cache for ${game.filename}`,
+                  );
                 } catch (e) {
+                  console.warn(
+                    `[LibraryManager] Cache write failed for ${game.filename}`,
+                    e,
+                  );
                   if (isWeb) {
                     // web fallback
                     cacheUri = `data:image/png;base64,${base64Data}`;

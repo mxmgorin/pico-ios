@@ -50,6 +50,8 @@
 	<true />
 	<key>UIFileSharingEnabled</key>
 	<true />
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false />
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true />
 	<key>CFBundleURLTypes</key>
